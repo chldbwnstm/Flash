@@ -1,14 +1,53 @@
-import { useState } from 'react';
+import { useState, FormEvent } from 'react';
 import Header from '../components/common/Header';
 import Footer from '../components/common/Footer';
+import Broadcaster from '../components/live/Broadcaster';
 import '../styles/LivePage.css';
 
 function LivePage() {
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
+  const [showBroadcaster, setShowBroadcaster] = useState<boolean>(false);
+  const [roomName, setRoomName] = useState<string>('');
+  const [userName, setUserName] = useState<string>('');
+  const [category, setCategory] = useState<string>('');
+  const [description, setDescription] = useState<string>('');
   
   const handleOptionSelect = (option: string) => {
     setSelectedOption(option);
   };
+
+  const handleStartBroadcast = (e: FormEvent) => {
+    e.preventDefault();
+    console.log('방송 시작 폼 제출됨:', { roomName, userName, category, description });
+    // 폼이 유효한지 확인
+    if (roomName && category) {
+      console.log('방송 시작 조건 충족');
+      setShowBroadcaster(true);
+    } else {
+      console.log('방송 시작 조건 불충족:', { roomName, category });
+    }
+  };
+
+  const handleCloseBroadcast = () => {
+    setShowBroadcaster(false);
+  };
+
+  // 방송자 컴포넌트가 표시되면 메인 컨텐츠 대신 보여줌
+  if (showBroadcaster) {
+    return (
+      <div className="live-page">
+        <Header isHomePage={false} />
+        <main className="live-container">
+          <Broadcaster 
+            userName={userName || '익명 사용자'} 
+            roomName={roomName} 
+            onClose={handleCloseBroadcast} 
+          />
+        </main>
+        <Footer simplified={true} />
+      </div>
+    );
+  }
 
   return (
     <div className="live-page">
@@ -27,7 +66,10 @@ function LivePage() {
             <div className="option-icon">📹</div>
             <h2>방송하기</h2>
             <p>제품 라이브 방송을 시작하고 고객과 실시간으로 소통하세요.</p>
-            <button className="btn btn-primary">방송 시작하기</button>
+            <button className="btn btn-primary" onClick={(e) => {
+              e.stopPropagation(); // 부모 요소의 클릭 이벤트 방지
+              handleOptionSelect('broadcast');
+            }}>방송 시작하기</button>
           </div>
           
           <div 
@@ -50,12 +92,30 @@ function LivePage() {
               <li>카메라와 마이크 연결 상태를 확인하세요.</li>
               <li>인터넷 연결이 안정적인지 확인하세요.</li>
             </ul>
-            <form className="broadcast-form">
+            <form className="broadcast-form" onSubmit={handleStartBroadcast}>
               <div className="form-group">
-                <input type="text" placeholder="방송 제목" required />
+                <input 
+                  type="text" 
+                  placeholder="방송 제목" 
+                  value={roomName}
+                  onChange={(e) => setRoomName(e.target.value)}
+                  required 
+                />
               </div>
               <div className="form-group">
-                <select required>
+                <input 
+                  type="text" 
+                  placeholder="방송자 이름" 
+                  value={userName}
+                  onChange={(e) => setUserName(e.target.value)}
+                />
+              </div>
+              <div className="form-group">
+                <select 
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  required
+                >
                   <option value="">카테고리 선택</option>
                   <option value="fashion">패션/의류</option>
                   <option value="beauty">뷰티/화장품</option>
@@ -65,7 +125,12 @@ function LivePage() {
                 </select>
               </div>
               <div className="form-group">
-                <textarea placeholder="방송 설명" rows={3} required></textarea>
+                <textarea 
+                  placeholder="방송 설명" 
+                  rows={3} 
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                ></textarea>
               </div>
               <button type="submit" className="btn btn-primary btn-full">방송 시작하기</button>
             </form>
