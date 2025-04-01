@@ -11,6 +11,9 @@
   },
   "dependencies": {
     "axios": "^1.8.4",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
     "livekit-client": "^2.9.9",
     "livekit-server-sdk": "^2.10.2",
     "react": "^19.0.0",
