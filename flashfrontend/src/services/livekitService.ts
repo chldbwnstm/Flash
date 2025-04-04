@@ -43,9 +43,10 @@ export class LiveKitService {
   // 방송 시작 (방에 연결)
   async startBroadcast(token: string): Promise<Room> {
     try {
-      // LiveKit 서버에 연결
-      const livekitUrl = import.meta.env.VITE_LIVEKIT_URL || 'wss://livekitserver1.picklive.show';
-      console.log('연결 시도할 URL:', livekitUrl);
+      // LiveKit 서버에 연결 (프록시 URL 사용)
+      // 직접 wss:// 주소 대신 백엔드 프록시를 통해 연결
+      const livekitUrl = '/livekit-proxy';
+      console.log('연결 시도할 URL (프록시):', livekitUrl);
       console.log('토큰 값:', token.substring(0, 20) + '...'); // 토큰 일부만 로그
       
       await this.room.connect(livekitUrl, token);
