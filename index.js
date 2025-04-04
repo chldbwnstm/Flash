@@ -10,7 +10,9 @@ const proxy = require('http-proxy').createProxyServer({
   target: 'wss://livekitserver1.picklive.show',
   ws: true,
   secure: true,
-  changeOrigin: true
+  changeOrigin: true,
+  ignorePath: false,
+  xfwd: true
 });
 
 // 프록시 에러 처리
@@ -22,6 +24,11 @@ proxy.on('error', (err, req, res) => {
     });
     res.end('프록시 오류');
   }
+});
+
+// 프록시 요청 로깅
+proxy.on('proxyReq', (proxyReq, req, res) => {
+  console.log(`프록시 요청: ${req.method} ${req.url} -> ${proxyReq.path}`);
 });
 
 const app = express();
@@ -75,29 +82,17 @@ const apiSecret = '9732e928137c718a7a023a19415e8667e44c6385f863bb758e7679fde1fb8
 const livekitHost = 'wss://livekitserver1.picklive.show';
 
 // LiveKit 프록시 설정
-const livekitProxy = createProxyMiddleware({
-  target: 'https://livekitserver1.picklive.show',
-  ws: true,
-  secure: true,
-  changeOrigin: true,
-  pathRewrite: {
-    '^/livekit-proxy': ''  // 프록시 경로를 빈 문자열로 재작성
-  },
-  onProxyReq: (proxyReq, req, res) => {
-    console.log(`프록시 요청: ${req.method} ${req.url} -> ${proxyReq.path}`);
-  },
-  onError: (err, req, res) => {
-    console.error('프록시 오류:', err);
-    if (res.writeHead) {
-      res.writeHead(500, { 'Content-Type': 'text/plain' });
-      res.end('LiveKit 서버 연결 오류');
-    }
-  },
-  logLevel: 'debug'
+app.all('/livekit-proxy/*', (req, res) => {
+  console.log('LiveKit HTTP 프록시 요청:', req.method, req.url);
+  
+  // URL의 /livekit-proxy 부분을 제거하여 실제 LiveKit 서버 경로로 매핑
+  const newUrl = req.url.replace('/livekit-proxy', '');
+  req.url = newUrl;
+  
+  console.log('변환된 URL:', newUrl);
+  
+  proxy.web(req, res);
 });
-
-// LiveKit 프록시 경로 설정
-app.use('/livekit-proxy', livekitProxy);
 
 // WebSocket 요청 처리
 const server = require('http').createServer(app);
@@ -105,7 +100,14 @@ const server = require('http').createServer(app);
 server.on('upgrade', (req, socket, head) => {
   if (req.url.startsWith('/livekit-proxy')) {
     console.log('WebSocket 업그레이드 요청:', req.url);
-    livekitProxy.upgrade(req, socket, head);
+    
+    // URL의 /livekit-proxy 부분을 제거하여 실제 LiveKit 서버 경로로 매핑
+    const newUrl = req.url.replace('/livekit-proxy', '');
+    req.url = newUrl;
+    
+    console.log('변환된 URL:', newUrl);
+    
+    proxy.ws(req, socket, head);
   }
 });
 
