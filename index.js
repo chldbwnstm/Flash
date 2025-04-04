@@ -2,7 +2,17 @@ const express = require('express');
 const path = require('path');
 const { AccessToken } = require('livekit-server-sdk');
 const fs = require('fs');
+const cors = require('cors');
 const app = express();
+
+// CORS 설정
+app.use(cors({
+  origin: ['https://picklive.show', 'http://localhost:8080'],
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+}));
+
 app.use(express.json());
 
 // MIME 타입 설정
