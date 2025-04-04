@@ -47,11 +47,8 @@ export class LiveKitService {
   // 방송 시작 (방에 연결)
   async startBroadcast(token: string): Promise<Room> {
     try {
-      // 개발 환경에서는 직접 LiveKit 서버에 연결, 프로덕션에서는 프록시 사용
-      const livekitUrl = window.location.hostname === 'localhost'
-        ? 'wss://livekitserver1.picklive.show' // 개발 환경: 직접 LiveKit 서버 연결
-        : 'wss://picklive.show/livekit';       // 프로덕션: 프록시 사용
-      
+      // 항상 직접 LiveKit 서버에 연결
+      const livekitUrl = 'wss://livekitserver1.picklive.show';
       console.log(`LiveKit 서버 연결 시도: ${livekitUrl}`);
       console.log(`토큰 일부: ${token.substring(0, 20)}...`);
       
