@@ -81,7 +81,10 @@ const livekitProxy = createProxyMiddleware({
   secure: true,
   changeOrigin: true,
   pathRewrite: {
-    '^/livekit-proxy': ''
+    '^/livekit-proxy': ''  // 프록시 경로를 빈 문자열로 재작성
+  },
+  onProxyReq: (proxyReq, req, res) => {
+    console.log(`프록시 요청: ${req.method} ${req.url} -> ${proxyReq.path}`);
   },
   onError: (err, req, res) => {
     console.error('프록시 오류:', err);

@@ -14,7 +14,11 @@ export class LiveKitService {
   private room: Room;
   
   constructor() {
-    this.room = new Room();
+    this.room = new Room({
+      adaptiveStream: true,
+      dynacast: true,
+      disconnectOnPageLeave: false,
+    });
     
     // 기본 이벤트 핸들러 설정
     this.room
@@ -43,13 +47,14 @@ export class LiveKitService {
   // 방송 시작 (방에 연결)
   async startBroadcast(token: string): Promise<Room> {
     try {
-      // LiveKit 서버에 프록시를 통해 연결
-      const livekitUrl = window.location.protocol === 'https:' 
-        ? 'wss://picklive.show/livekit-proxy' 
+      // 현재 프로토콜(HTTPS 또는 HTTP)에 따라 LiveKit URL 설정
+      const isSecure = window.location.protocol === 'https:';
+      const livekitUrl = isSecure 
+        ? 'wss://livekitserver1.picklive.show' 
         : 'ws://localhost:8080/livekit-proxy';
       
-      console.log('연결 시도할 URL (프록시):', livekitUrl);
-      console.log('토큰 값:', token.substring(0, 20) + '...'); // 토큰 일부만 로그
+      console.log(`LiveKit 서버에 연결 시도: ${livekitUrl}`);
+      console.log(`토큰 일부: ${token.substring(0, 20)}...`);
       
       await this.room.connect(livekitUrl, token);
       console.log('Connected to room:', this.room.name);
