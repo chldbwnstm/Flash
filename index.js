@@ -140,11 +140,11 @@ app.get('/api/rooms', async (req, res) => {
     
     console.log('활성 방 목록:', rooms);
     
-    // 클라이언트에게 필요한 정보만 필터링
+    // 클라이언트에게 필요한 정보만 필터링하고 BigInt를 문자열로 변환
     const roomList = rooms.map(room => ({
       name: room.name,
       numParticipants: room.numParticipants,
-      creationTime: room.creationTime,
+      creationTime: room.creationTime ? room.creationTime.toString() : '',
       metadata: room.metadata ? JSON.parse(room.metadata) : null,
       activeRecording: room.activeRecording
     }));

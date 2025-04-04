@@ -241,10 +241,11 @@ function LivePage() {
                     <h4>{room.name}</h4>
                     <p>
                       {room.metadata?.category || '일반'} | 
-                      {new Date(room.creationTime).toLocaleTimeString('ko-KR', {
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })} 시작
+                      {room.creationTime ? 
+                        new Date(parseInt(room.creationTime)).toLocaleTimeString('ko-KR', {
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        }) : '방금'} 시작
                     </p>
                   </div>
                 ))}
