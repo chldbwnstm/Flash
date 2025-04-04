@@ -3,42 +3,12 @@ const path = require('path');
 const { AccessToken } = require('livekit-server-sdk');
 const fs = require('fs');
 const cors = require('cors');
-const { createProxyMiddleware } = require('http-proxy-middleware');
-
-// 프록시 서버 생성
-const proxy = require('http-proxy').createProxyServer({
-  target: 'https://livekitserver1.picklive.show',
-  ws: true,
-  secure: true,
-  changeOrigin: true,
-  ignorePath: false,
-  xfwd: true,
-  headers: {
-    'X-Forwarded-Proto': 'https'
-  }
-});
-
-// 프록시 에러 처리
-proxy.on('error', (err, req, res) => {
-  console.error('프록시 오류:', err);
-  if (res.writeHead) {
-    res.writeHead(500, {
-      'Content-Type': 'text/plain'
-    });
-    res.end('프록시 오류');
-  }
-});
-
-// 프록시 요청 로깅
-proxy.on('proxyReq', (proxyReq, req, res) => {
-  console.log(`프록시 요청: ${req.method} ${req.url} -> ${proxyReq.path}`);
-});
 
 const app = express();
 
 // CORS 설정
 app.use(cors({
-  origin: ['https://picklive.show', 'http://localhost:8080'],
+  origin: '*',
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
@@ -82,54 +52,9 @@ app.use(express.static(staticPath, {
 // LiveKit 설정
 const apiKey = '77d517fbde26187d4349fa09575776b2';
 const apiSecret = '9732e928137c718a7a023a19415e8667e44c6385f863bb758e7679fde1fb8ead';
-const livekitHost = 'wss://livekitserver1.picklive.show';
-
-// LiveKit 프록시 설정
-app.all('/livekit-proxy/*', (req, res) => {
-  console.log('LiveKit HTTP 프록시 요청:', req.method, req.url);
-  
-  // URL의 /livekit-proxy 부분을 제거하여 실제 LiveKit 서버 경로로 매핑
-  const newUrl = req.url.replace('/livekit-proxy', '');
-  req.url = newUrl;
-  
-  console.log('변환된 URL:', newUrl);
-  
-  // 헤더 추가
-  req.headers['x-forwarded-proto'] = 'https';
-  
-  // 프록시 옵션 수정
-  proxy.web(req, res, {
-    target: 'https://livekitserver1.picklive.show',
-    secure: true,
-    changeOrigin: true
-  });
-});
 
 // WebSocket 요청 처리
 const server = require('http').createServer(app);
-
-server.on('upgrade', (req, socket, head) => {
-  if (req.url.startsWith('/livekit-proxy')) {
-    console.log('WebSocket 업그레이드 요청:', req.url);
-    
-    // URL의 /livekit-proxy 부분을 제거하여 실제 LiveKit 서버 경로로 매핑
-    const newUrl = req.url.replace('/livekit-proxy', '');
-    req.url = newUrl;
-    
-    console.log('변환된 URL:', newUrl);
-    
-    // 헤더 추가
-    req.headers['x-forwarded-proto'] = 'https';
-    
-    // WebSocket 프록시 옵션 수정
-    proxy.ws(req, socket, head, {
-      target: 'wss://livekitserver1.picklive.show',
-      ws: true,
-      secure: true,
-      changeOrigin: true
-    });
-  }
-});
 
 // LiveKit 토큰 생성 엔드포인트
 app.post('/api/create-token', async (req, res) => {
