@@ -55,7 +55,12 @@ export class LiveKitService {
       console.log(`LiveKit 프록시 서버에 연결 시도: ${livekitUrl}`);
       console.log(`토큰 일부: ${token.substring(0, 20)}...`);
       
-      await this.room.connect(livekitUrl, token);
+      // 연결 옵션 설정
+      const connectOptions = {
+        autoSubscribe: true,
+      };
+      
+      await this.room.connect(livekitUrl, token, connectOptions);
       console.log('Connected to room:', this.room.name);
       
       // 로컬 트랙 게시 (카메라 및 마이크)

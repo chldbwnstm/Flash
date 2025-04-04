@@ -7,12 +7,15 @@ const { createProxyMiddleware } = require('http-proxy-middleware');
 
 // 프록시 서버 생성
 const proxy = require('http-proxy').createProxyServer({
-  target: 'wss://livekitserver1.picklive.show',
+  target: 'https://livekitserver1.picklive.show',
   ws: true,
   secure: true,
   changeOrigin: true,
   ignorePath: false,
-  xfwd: true
+  xfwd: true,
+  headers: {
+    'X-Forwarded-Proto': 'https'
+  }
 });
 
 // 프록시 에러 처리
@@ -91,7 +94,15 @@ app.all('/livekit-proxy/*', (req, res) => {
   
   console.log('변환된 URL:', newUrl);
   
-  proxy.web(req, res);
+  // 헤더 추가
+  req.headers['x-forwarded-proto'] = 'https';
+  
+  // 프록시 옵션 수정
+  proxy.web(req, res, {
+    target: 'https://livekitserver1.picklive.show',
+    secure: true,
+    changeOrigin: true
+  });
 });
 
 // WebSocket 요청 처리
@@ -107,7 +118,16 @@ server.on('upgrade', (req, socket, head) => {
     
     console.log('변환된 URL:', newUrl);
     
-    proxy.ws(req, socket, head);
+    // 헤더 추가
+    req.headers['x-forwarded-proto'] = 'https';
+    
+    // WebSocket 프록시 옵션 수정
+    proxy.ws(req, socket, head, {
+      target: 'wss://livekitserver1.picklive.show',
+      ws: true,
+      secure: true,
+      changeOrigin: true
+    });
   }
 });
 
