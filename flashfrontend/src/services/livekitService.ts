@@ -47,41 +47,28 @@ export class LiveKitService {
   // 방송 시작 (방에 연결)
   async startBroadcast(token: string): Promise<Room> {
     try {
-      // LiveKit 서버에 직접 연결
-      const livekitUrl = 'wss://livekitserver1.picklive.show';
+      // 개발 환경에서는 직접 LiveKit 서버에 연결, 프로덕션에서는 프록시 사용
+      const livekitUrl = window.location.hostname === 'localhost'
+        ? 'wss://livekitserver1.picklive.show' // 개발 환경: 직접 LiveKit 서버 연결
+        : 'wss://picklive.show/livekit';       // 프로덕션: 프록시 사용
       
-      console.log(`LiveKit 서버에 직접 연결 시도: ${livekitUrl}`);
+      console.log(`LiveKit 서버 연결 시도: ${livekitUrl}`);
       console.log(`토큰 일부: ${token.substring(0, 20)}...`);
       
       // 연결 옵션 설정
       const connectOptions = {
-        autoSubscribe: true,
+        autoSubscribe: true
       };
       
-      // 사전 검증 요청을 우리 서버의 프록시 엔드포인트를 통해 수행
-      try {
-        // 원래 LiveKit 검증 URL을 프록시로 대체
-        const validateUrl = `/api/livekit/validate?access_token=${token}&auto_subscribe=1&sdk=js&version=2.9.9&protocol=15&adaptive_stream=1`;
-        console.log('프록시를 통한 토큰 검증 요청 시도...');
-        
-        const validateResponse = await fetch(validateUrl);
-        const validateResult = await validateResponse.text();
-        
-        console.log('토큰 검증 응답:', validateResponse.status, validateResponse.ok ? '성공' : '실패');
-        if(!validateResponse.ok) {
-          console.error('검증 응답 내용:', validateResult);
-        }
-      } catch (valErr) {
-        console.log('토큰 검증 시도 중 오류 (무시 가능):', valErr);
-        // 오류가 발생해도 계속 진행
-      }
+      console.log('LiveKit 서버 연결 시작...');
       
-      // LiveKit 서버에 연결 시도
+      // LiveKit 서버에 연결
       await this.room.connect(livekitUrl, token, connectOptions);
-      console.log('Connected to room:', this.room.name);
+      console.log('방에 성공적으로 연결됨:', this.room.name);
       
       // 로컬 트랙 게시 (카메라 및 마이크)
       await this.publishLocalTracks();
+      console.log('로컬 미디어 트랙 게시 완료');
       
       return this.room;
     } catch (error) {

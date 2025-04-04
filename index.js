@@ -3,10 +3,12 @@ const path = require('path');
 const { AccessToken } = require('livekit-server-sdk');
 const fs = require('fs');
 const cors = require('cors');
+const http = require('http');
+const { createProxyMiddleware } = require('http-proxy-middleware');
 
 const app = express();
 
-// CORS 설정
+// CORS 설정 - 모든 출처 허용
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'OPTIONS'],
@@ -35,26 +37,51 @@ const mimeTypes = {
   '.wasm': 'application/wasm'
 };
 
-// 정적 파일 경로 설정
-const staticPath = path.join(__dirname, 'flashfrontend', 'dist');
-console.log('정적 파일 경로:', staticPath);
-
-// 정적 파일 제공
-app.use(express.static(staticPath, {
-  setHeaders: function(res, filePath) {
-    const ext = path.extname(filePath).toLowerCase();
-    if (mimeTypes[ext]) {
-      res.setHeader('Content-Type', mimeTypes[ext]);
-    }
-  }
-}));
-
 // LiveKit 설정
 const apiKey = '77d517fbde26187d4349fa09575776b2';
 const apiSecret = '9732e928137c718a7a023a19415e8667e44c6385f863bb758e7679fde1fb8ead';
 
-// WebSocket 요청 처리
-const server = require('http').createServer(app);
+// WebSocket 프록시 설정 (단순함을 위해 http-proxy-middleware 사용)
+const wsProxy = createProxyMiddleware({
+  target: 'https://livekitserver1.picklive.show',
+  changeOrigin: true,
+  ws: true,
+  secure: true,
+  pathRewrite: {
+    '^/livekit': ''  // /livekit 경로를 빈 문자열로 대체
+  },
+  onProxyReq: (proxyReq, req, res) => {
+    console.log(`웹 프록시 요청: ${req.method} ${req.url} -> ${proxyReq.path}`);
+  },
+  onProxyRes: (proxyRes, req, res) => {
+    console.log(`웹 프록시 응답: ${proxyRes.statusCode} (${req.url})`);
+  },
+  onError: (err, req, res) => {
+    console.error(`프록시 오류: ${err.message}`);
+    if (res.writeHead) {
+      res.writeHead(502, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'LiveKit 서버 연결 오류', message: err.message }));
+    }
+  }
+});
+
+// LiveKit 프록시 설정
+app.use('/livekit', wsProxy);
+
+// 정적 파일 제공
+const staticPath = path.join(__dirname, 'flashfrontend', 'dist');
+console.log('정적 파일 경로:', staticPath);
+
+app.use(express.static(staticPath, {
+  setHeaders: function(res, filePath) {
+    const ext = path.extname(filePath).toLowerCase();
+    if (ext === '.js') {
+      res.setHeader('Content-Type', 'application/javascript');
+    } else if (ext === '.css') {
+      res.setHeader('Content-Type', 'text/css');
+    }
+  }
+}));
 
 // LiveKit 토큰 생성 엔드포인트
 app.post('/api/create-token', async (req, res) => {
@@ -81,7 +108,7 @@ app.post('/api/create-token', async (req, res) => {
       canSubscribe: true,
     });
     
-    // 서명된 토큰 생성 (비동기 함수이므로 await 사용)
+    // 서명된 토큰 생성
     const jwt = await token.toJwt();
     console.log('생성된 토큰 타입:', typeof jwt);
     
@@ -113,61 +140,19 @@ app.get('/api/pirates/:id', (req,res) => {
     }
 });
 
-// 디렉토리 스캔 헬퍼 함수
-function directoryTree(dir, depth = 0) {
-  const result = [];
-  if (depth > 2) return result; // 깊이 제한
-  
-  try {
-    const files = fs.readdirSync(dir);
-    for (const file of files) {
-      const filePath = path.join(dir, file);
-      const stat = fs.statSync(filePath);
-      if (stat.isDirectory()) {
-        result.push({
-          type: 'directory',
-          name: file,
-          path: filePath,
-          children: directoryTree(filePath, depth + 1)
-        });
-      } else {
-        result.push({
-          type: 'file',
-          name: file,
-          path: filePath,
-          size: stat.size
-        });
-      }
-    }
-  } catch (err) {
-    console.error(`디렉토리 스캔 오류 (${dir}):`, err);
-  }
-  
-  return result;
-}
-
 // 리액트 라우팅을 위해 모든 경로를 index.html로 리다이렉트
 app.get('*', (req, res, next) => {
-  if (req.url.startsWith('/api')) {
+  if (req.url.startsWith('/api') || req.url.startsWith('/livekit')) {
     return next();
   }
   
   // 파일 요청인 경우 (확장자가 있는 경우)
   if (req.url.includes('.')) {
     const filePath = path.join(staticPath, req.url);
-    console.log('파일 요청:', req.url, '-> 파일 경로:', filePath);
-    
     if (fs.existsSync(filePath)) {
-      const ext = path.extname(filePath).toLowerCase();
-      if (mimeTypes[ext]) {
-        res.setHeader('Content-Type', mimeTypes[ext]);
-      }
       return res.sendFile(filePath);
     } else {
       console.log('파일을 찾을 수 없음:', filePath);
-      // 트리 구조 출력 (디버깅용)
-      const tree = directoryTree(staticPath);
-      console.log('디렉토리 구조:', JSON.stringify(tree, null, 2));
       return res.status(404).send('File not found');
     }
   }
@@ -177,65 +162,31 @@ app.get('*', (req, res, next) => {
   return res.sendFile(path.join(staticPath, 'index.html'));
 });
 
-// LiveKit 토큰 및 연결 관련 프록시 엔드포인트
-app.get('/api/livekit/validate', async (req, res) => {
-  try {
-    // 쿼리스트링 그대로 전달
-    const queryParams = new URLSearchParams(req.query).toString();
-    const targetUrl = `https://livekitserver1.picklive.show/rtc/validate?${queryParams}`;
-    
-    console.log('LiveKit 검증 프록시 요청:', targetUrl);
-    
-    // 서버 측에서 요청 전달 (CORS 우회)
-    const fetch = await import('node-fetch');
-    const response = await fetch.default(targetUrl, {
-      method: 'GET',
-      headers: {
-        'User-Agent': req.headers['user-agent']
-      }
-    });
-    
-    const data = await response.text();
-    const status = response.status;
-    
-    console.log('LiveKit 검증 응답 상태:', status);
-    
-    // 응답 헤더 설정
-    res.status(status);
-    for (const [key, value] of response.headers.entries()) {
-      // 적절한 헤더만 전달
-      if (!['content-length', 'connection', 'keep-alive'].includes(key.toLowerCase())) {
-        res.setHeader(key, value);
-      }
-    }
-    
-    // CORS 허용 헤더
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-    
-    // 응답 데이터 반환
-    res.send(data);
-  } catch (error) {
-    console.error('LiveKit 검증 프록시 오류:', error);
-    res.status(500).json({ error: 'Failed to proxy validation request' });
+// HTTP 서버 생성
+const server = http.createServer(app);
+
+// WebSocket 지원을 위해 서버에 프록시 연결
+server.on('upgrade', (req, socket, head) => {
+  if (req.url.startsWith('/livekit')) {
+    console.log('WebSocket 업그레이드 요청:', req.url);
+    wsProxy.upgrade(req, socket, head);
   }
 });
 
 const port = process.env.PORT || 8080;
 
-// app.listen(port, () => {
+// 서버 시작
 server.listen(port, () => {
-    console.log(`Listening on port ${port}`);
+    console.log(`서버가 포트 ${port}에서 실행 중입니다.`);
     console.log('현재 디렉토리:', __dirname);
+    console.log('정적 파일 경로:', staticPath);
     
-    // 디렉토리 구조 출력
+    // 디렉토리 내용 로깅
     try {
-      console.log('\n정적 파일 디렉토리 구조:');
-      const tree = directoryTree(staticPath);
-      console.log(JSON.stringify(tree, null, 2));
+      const files = fs.readdirSync(staticPath);
+      console.log('정적 파일 디렉토리 내용:', files);
     } catch (err) {
-      console.error('디렉토리 구조 출력 오류:', err);
+      console.error('디렉토리 내용 확인 오류:', err);
     }
 });
 
@@ -251,3 +202,8 @@ function getPirate(id) {
     
     return pirates.find(p => p.id == id);
 }
+
+// LiveKit 서버 URL 결정
+const livekitUrl = 'wss://livekitserver1.picklive.show';
+
+console.log(`LiveKit 서버 연결 시도: ${livekitUrl}`);
