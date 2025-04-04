@@ -9,6 +9,19 @@ import {
   LocalTrackPublication
 } from 'livekit-client';
 
+// 활성 방 정보 인터페이스 정의
+export interface RoomInfo {
+  name: string;
+  numParticipants: number;
+  creationTime: string;
+  metadata: {
+    hostName?: string;
+    category?: string;
+    description?: string;
+  } | null;
+  activeRecording: boolean;
+}
+
 // LiveKit 서비스 - 토큰 생성 및 방 연결 관리
 export class LiveKitService {
   private room: Room;
@@ -26,6 +39,17 @@ export class LiveKitService {
       .on(RoomEvent.ParticipantDisconnected, this.handleParticipantDisconnected)
       .on(RoomEvent.Disconnected, this.handleDisconnect)
       .on(RoomEvent.ConnectionStateChanged, this.handleConnectionStateChanged);
+  }
+  
+  // 활성 방 목록 가져오기
+  async getActiveRooms(): Promise<RoomInfo[]> {
+    try {
+      const response = await axios.get('/api/rooms');
+      return response.data.rooms;
+    } catch (error) {
+      console.error('Failed to get active rooms:', error);
+      throw new Error('방 목록을 가져오는데 실패했습니다.');
+    }
   }
   
   // 토큰 생성 요청
@@ -71,6 +95,29 @@ export class LiveKitService {
     } catch (error) {
       console.error('Failed to connect to room:', error);
       throw new Error('방송 시작에 실패했습니다.');
+    }
+  }
+  
+  // 시청자 모드로 방 참여
+  async joinAsViewer(token: string): Promise<Room> {
+    try {
+      // LiveKit 서버에 연결
+      const livekitUrl = 'wss://livekitserver1.picklive.show';
+      console.log(`시청자 모드로 LiveKit 서버 연결 시도: ${livekitUrl}`);
+      
+      // 연결 옵션 설정 - 시청자는 마이크와 카메라 없이 참여
+      const connectOptions = {
+        autoSubscribe: true
+      };
+      
+      // LiveKit 서버에 연결
+      await this.room.connect(livekitUrl, token, connectOptions);
+      console.log('시청자로 방에 성공적으로 연결됨:', this.room.name);
+      
+      return this.room;
+    } catch (error) {
+      console.error('Failed to join room as viewer:', error);
+      throw new Error('방 참여에 실패했습니다.');
     }
   }
   

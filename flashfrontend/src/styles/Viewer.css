@@ -1,0 +1,156 @@
+.viewer-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.viewer-container.loading,
+.viewer-container.error {
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+  text-align: center;
+  padding: 20px;
+}
+
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 5px solid #f3f3f3;
+  border-top: 5px solid #3498db;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 20px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.error-icon {
+  font-size: 48px;
+  margin-bottom: 20px;
+}
+
+.broadcast-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  background-color: #fff;
+  border-bottom: 1px solid #e1e4e8;
+}
+
+.broadcast-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.live-badge {
+  background-color: #e74c3c;
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.room-name {
+  font-weight: 600;
+  font-size: 18px;
+}
+
+.broadcast-controls {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.viewer-count {
+  background-color: rgba(0, 0, 0, 0.1);
+  padding: 6px 10px;
+  border-radius: 20px;
+  font-size: 14px;
+}
+
+.broadcast-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.video-container {
+  flex: 3;
+  background-color: #000;
+  position: relative;
+  overflow: hidden;
+}
+
+.remote-video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.no-broadcast {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: white;
+  background-color: rgba(0, 0, 0, 0.7);
+  text-align: center;
+  padding: 20px;
+}
+
+.chat-container-wrapper {
+  flex: 1;
+  border-left: 1px solid #e1e4e8;
+  overflow: hidden;
+  background-color: #fff;
+  min-width: 300px;
+  max-width: 400px;
+}
+
+@media (max-width: 992px) {
+  .broadcast-content {
+    flex-direction: column;
+  }
+  
+  .video-container {
+    height: 0;
+    padding-bottom: 56.25%; /* 16:9 비율 */
+  }
+  
+  .chat-container-wrapper {
+    border-left: none;
+    border-top: 1px solid #e1e4e8;
+    max-width: 100%;
+    min-width: 100%;
+    height: 300px;
+  }
+}
+
+@media (max-width: 576px) {
+  .broadcast-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  
+  .broadcast-controls {
+    width: 100%;
+    justify-content: space-between;
+  }
+} 

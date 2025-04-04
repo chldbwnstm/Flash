@@ -1,172 +1,221 @@
 .live-page {
-    min-height: 100vh;
     display: flex;
     flex-direction: column;
+    min-height: 100vh;
   }
   
   .live-container {
-    flex: 1;
-    padding: 3rem 0;
+    flex-grow: 1;
+    width: 100%;
     max-width: 1200px;
     margin: 0 auto;
-    padding: 0 20px;
+    padding: 2rem;
   }
   
   .live-title {
     font-size: 2.5rem;
     font-weight: 700;
-    text-align: center;
     margin-bottom: 1rem;
-    color: var(--text-color);
+    color: #333;
   }
   
   .live-description {
-    text-align: center;
-    max-width: 700px;
-    margin: 0 auto 3rem;
-    color: var(--text-light);
     font-size: 1.1rem;
+    margin-bottom: 2.5rem;
+    color: #666;
   }
   
   .options-container {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    display: flex;
     gap: 2rem;
     margin-bottom: 3rem;
   }
   
   .option-card {
-    background-color: var(--white);
+    flex: 1;
+    background-color: #fff;
+    border-radius: 10px;
     padding: 2rem;
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     text-align: center;
     transition: all 0.3s ease;
     cursor: pointer;
-    border: 2px solid transparent;
-  }
-  
-  .option-card:hover {
-    transform: translateY(-5px);
+    position: relative;
   }
   
   .option-card.selected {
-    border-color: var(--primary-color);
+    border: 2px solid #3498db;
     transform: translateY(-5px);
   }
   
-  .option-icon {
+  .option-card .option-icon {
     font-size: 3rem;
     margin-bottom: 1rem;
   }
   
   .option-card h2 {
     font-size: 1.5rem;
-    font-weight: 700;
     margin-bottom: 1rem;
+    color: #333;
   }
   
   .option-card p {
-    color: var(--text-light);
     margin-bottom: 1.5rem;
+    color: #666;
+  }
+  
+  .option-card .btn {
+    margin-top: auto;
   }
   
   .option-details {
-    background-color: var(--white);
+    background-color: #fff;
+    border-radius: 10px;
     padding: 2rem;
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
-    margin-top: 2rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    margin-bottom: 2rem;
   }
   
   .option-details h3 {
     font-size: 1.5rem;
-    font-weight: 700;
     margin-bottom: 1rem;
+    color: #333;
   }
   
   .option-details p {
-    color: var(--text-light);
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
+    color: #666;
   }
   
   .option-details ul {
-    margin-bottom: 2rem;
+    margin-bottom: 1.5rem;
     padding-left: 1.5rem;
   }
   
   .option-details li {
     margin-bottom: 0.5rem;
-    color: var(--text-light);
+    color: #666;
   }
   
   .broadcast-form {
-    max-width: 600px;
-    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
   }
   
-  .broadcast-form .form-group {
-    margin-bottom: 1.5rem;
-  }
-  
-  .broadcast-form input,
-  .broadcast-form select,
-  .broadcast-form textarea {
+  .form-group {
     width: 100%;
-    padding: 12px 16px;
-    border-radius: var(--radius);
-    border: 2px solid var(--border-color);
-    font-size: 1rem;
-    outline: none;
-    transition: border-color 0.3s ease;
-    resize: none;
   }
   
-  .broadcast-form input:focus,
-  .broadcast-form select:focus,
-  .broadcast-form textarea:focus {
-    border-color: var(--primary-color);
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 1rem;
+  }
+  
+  .form-group select {
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+    background-size: 1em;
+  }
+  
+  .btn {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 5px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  
+  .btn-primary {
+    background-color: #3498db;
+    color: #fff;
+  }
+  
+  .btn-primary:hover {
+    background-color: #2980b9;
+  }
+  
+  .btn-secondary {
+    background-color: #f0f0f0;
+    color: #333;
+  }
+  
+  .btn-secondary:hover {
+    background-color: #e0e0e0;
+  }
+  
+  .btn-danger {
+    background-color: #e74c3c;
+    color: #fff;
+  }
+  
+  .btn-danger:hover {
+    background-color: #c0392b;
+  }
+  
+  .btn-full {
+    width: 100%;
   }
   
   .live-list {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 1.5rem;
+    margin-top: 1.5rem;
   }
   
   .live-item {
+    background-color: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
     cursor: pointer;
   }
   
+  .live-item:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+  
+  .live-item.selected {
+    border: 2px solid #3498db;
+  }
+  
   .live-thumbnail {
-    position: relative;
     height: 160px;
-    background-color: #ddd;
-    border-radius: var(--radius);
-    margin-bottom: 0.5rem;
-    overflow: hidden;
-    background-image: linear-gradient(to bottom right, #f3f4f6, #e5e7eb);
+    background-color: #f0f0f0;
+    position: relative;
+    background-image: linear-gradient(to bottom right, #3498db, #2c3e50);
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #9ca3af;
+    color: white;
     font-size: 2rem;
-  }
-  
-  .live-thumbnail:before {
-    content: "📺";
   }
   
   .live-badge {
     position: absolute;
     top: 10px;
     left: 10px;
-    background-color: #ef4444;
+    background-color: #e74c3c;
     color: white;
-    padding: 0.25rem 0.5rem;
+    font-size: 12px;
+    font-weight: bold;
+    padding: 4px 8px;
     border-radius: 4px;
-    font-size: 0.75rem;
-    font-weight: 600;
   }
   
   .viewer-count {
@@ -175,29 +224,86 @@
     right: 10px;
     background-color: rgba(0, 0, 0, 0.7);
     color: white;
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
-    font-size: 0.75rem;
+    font-size: 12px;
+    padding: 4px 8px;
+    border-radius: 20px;
   }
   
   .live-item h4 {
-    font-size: 1rem;
-    font-weight: 600;
-    margin-bottom: 0.25rem;
-    color: var(--text-color);
+    padding: 12px 15px 8px;
+    font-size: 1.1rem;
+    margin: 0;
   }
   
   .live-item p {
-    font-size: 0.875rem;
-    color: var(--text-light);
+    padding: 0 15px 15px;
+    font-size: 0.9rem;
+    color: #777;
+    margin: 0;
+  }
+  
+  .loading-indicator {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2rem;
+  }
+  
+  .loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #3498db;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 1rem;
+  }
+  
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  
+  .no-rooms {
+    text-align: center;
+    padding: 2rem;
+    background-color: #f9f9f9;
+    border-radius: 8px;
+  }
+  
+  .room-join-form {
+    margin-top: 2rem;
+    padding: 1.5rem;
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    border-left: 4px solid #3498db;
+  }
+  
+  .room-join-form h4 {
+    margin-bottom: 1rem;
+    color: #333;
   }
   
   @media (max-width: 768px) {
     .options-container {
-      grid-template-columns: 1fr;
+      flex-direction: column;
     }
     
     .live-list {
-      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      grid-template-columns: 1fr;
+    }
+  }
+  
+  @media (max-width: 480px) {
+    .live-container {
+      padding: 1rem;
+    }
+    
+    .option-card {
+      padding: 1.5rem;
+    }
+    
+    .option-details {
+      padding: 1.5rem;
     }
   }

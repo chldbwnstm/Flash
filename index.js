@@ -1,6 +1,6 @@
 const express = require('express');
 const path = require('path');
-const { AccessToken } = require('livekit-server-sdk');
+const { AccessToken, RoomServiceClient } = require('livekit-server-sdk');
 const fs = require('fs');
 const cors = require('cors');
 const http = require('http');
@@ -40,6 +40,10 @@ const mimeTypes = {
 // LiveKit 설정
 const apiKey = '77d517fbde26187d4349fa09575776b2';
 const apiSecret = '9732e928137c718a7a023a19415e8667e44c6385f863bb758e7679fde1fb8ead';
+const livekitUrl = 'https://livekitserver1.picklive.show';
+
+// LiveKit Room Service 클라이언트 생성
+const roomService = new RoomServiceClient(livekitUrl, apiKey, apiSecret);
 
 // WebSocket 프록시 설정 (단순함을 위해 http-proxy-middleware 사용)
 const wsProxy = createProxyMiddleware({
@@ -126,6 +130,35 @@ app.post('/api/create-token', async (req, res) => {
   }
 });
 
+// 활성 방 목록 가져오는 엔드포인트
+app.get('/api/rooms', async (req, res) => {
+  try {
+    console.log('활성 방 목록 요청 받음');
+    
+    // LiveKit 서버에서 활성 방 목록 조회
+    const rooms = await roomService.listRooms();
+    
+    console.log('활성 방 목록:', rooms);
+    
+    // 클라이언트에게 필요한 정보만 필터링
+    const roomList = rooms.map(room => ({
+      name: room.name,
+      numParticipants: room.numParticipants,
+      creationTime: room.creationTime,
+      metadata: room.metadata ? JSON.parse(room.metadata) : null,
+      activeRecording: room.activeRecording
+    }));
+    
+    res.json({ rooms: roomList });
+  } catch (error) {
+    console.error('방 목록 조회 오류:', error);
+    res.status(500).json({ 
+      error: '방 목록을 가져오는데 실패했습니다.', 
+      details: error.message 
+    });
+  }
+});
+
 // API 엔드포인트
 app.get('/api/pirates/:id', (req,res) => {
     const id = req.params.id;
@@ -202,8 +235,5 @@ function getPirate(id) {
     
     return pirates.find(p => p.id == id);
 }
-
-// LiveKit 서버 URL 결정
-const livekitUrl = 'wss://livekitserver1.picklive.show';
 
 console.log(`LiveKit 서버 연결 시도: ${livekitUrl}`);

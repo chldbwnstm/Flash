@@ -1,16 +1,44 @@
-import { useState, FormEvent } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 import Header from '../components/common/Header';
 import Footer from '../components/common/Footer';
 import Broadcaster from '../components/live/Broadcaster';
+import Viewer from '../components/live/Viewer';
+import livekitService, { RoomInfo } from '../services/livekitService';
 import '../styles/LivePage.css';
 
 function LivePage() {
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [showBroadcaster, setShowBroadcaster] = useState<boolean>(false);
+  const [showViewer, setShowViewer] = useState<boolean>(false);
   const [roomName, setRoomName] = useState<string>('');
   const [userName, setUserName] = useState<string>('');
   const [category, setCategory] = useState<string>('');
   const [description, setDescription] = useState<string>('');
+  const [activeRooms, setActiveRooms] = useState<RoomInfo[]>([]);
+  const [isLoadingRooms, setIsLoadingRooms] = useState<boolean>(false);
+  const [selectedRoom, setSelectedRoom] = useState<RoomInfo | null>(null);
+  const [viewerName, setViewerName] = useState<string>('');
+  
+  // 활성 방 목록 로드
+  useEffect(() => {
+    if (selectedOption === 'watch') {
+      loadActiveRooms();
+    }
+  }, [selectedOption]);
+  
+  // 활성 방 목록 가져오기
+  const loadActiveRooms = async () => {
+    try {
+      setIsLoadingRooms(true);
+      const rooms = await livekitService.getActiveRooms();
+      setActiveRooms(rooms);
+      console.log('활성 방 목록 로드 성공:', rooms);
+    } catch (error) {
+      console.error('활성 방 목록 로드 실패:', error);
+    } finally {
+      setIsLoadingRooms(false);
+    }
+  };
   
   const handleOptionSelect = (option: string) => {
     setSelectedOption(option);
@@ -31,8 +59,33 @@ function LivePage() {
   const handleCloseBroadcast = () => {
     setShowBroadcaster(false);
   };
-
-  // 방송자 컴포넌트가 표시되면 메인 컨텐츠 대신 보여줌
+  
+  // 방 선택
+  const handleRoomSelect = (room: RoomInfo) => {
+    setSelectedRoom(room);
+  };
+  
+  // 방 시청하기
+  const handleJoinRoom = (e: FormEvent) => {
+    e.preventDefault();
+    if (selectedRoom && viewerName) {
+      console.log('방 참여 시작:', { 
+        roomName: selectedRoom.name, 
+        viewerName 
+      });
+      setRoomName(selectedRoom.name);
+      setUserName(viewerName);
+      setShowViewer(true);
+    }
+  };
+  
+  // 시청 종료
+  const handleCloseViewer = () => {
+    setShowViewer(false);
+    setSelectedRoom(null);
+  };
+  
+  // 방송 컴포넌트 렌더링
   if (showBroadcaster) {
     return (
       <div className="live-page">
@@ -42,6 +95,23 @@ function LivePage() {
             userName={userName || '익명 사용자'} 
             roomName={roomName} 
             onClose={handleCloseBroadcast} 
+          />
+        </main>
+        <Footer simplified={true} />
+      </div>
+    );
+  }
+  
+  // 시청자 컴포넌트 렌더링
+  if (showViewer) {
+    return (
+      <div className="live-page">
+        <Header isHomePage={false} />
+        <main className="live-container">
+          <Viewer
+            userName={userName || '익명 시청자'}
+            roomName={roomName}
+            onClose={handleCloseViewer}
           />
         </main>
         <Footer simplified={true} />
@@ -79,7 +149,16 @@ function LivePage() {
             <div className="option-icon">👁️</div>
             <h2>시청하기</h2>
             <p>진행 중인 라이브 방송을 확인하고 참여하세요.</p>
-            <button className="btn btn-primary">라이브 찾기</button>
+            <button 
+              className="btn btn-primary"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleOptionSelect('watch');
+                loadActiveRooms(); // 즉시 방 목록 로드
+              }}
+            >
+              라이브 찾기
+            </button>
           </div>
         </div>
         
@@ -140,33 +219,71 @@ function LivePage() {
         {selectedOption === 'watch' && (
           <div className="option-details">
             <h3>라이브 방송 둘러보기</h3>
-            <p>현재 진행 중인 인기 라이브 방송:</p>
-            <div className="live-list">
-              <div className="live-item">
-                <div className="live-thumbnail">
-                  <span className="live-badge">LIVE</span>
-                  <div className="viewer-count">👁️ 1,245</div>
-                </div>
-                <h4>봄맞이 신상 의류 50% 할인 특가</h4>
-                <p>패션스토어 | 23분 전 시작</p>
+            <p>현재 진행 중인 라이브 방송:</p>
+            
+            {isLoadingRooms ? (
+              <div className="loading-indicator">
+                <div className="loading-spinner"></div>
+                <p>방 목록을 불러오는 중...</p>
               </div>
-              <div className="live-item">
-                <div className="live-thumbnail">
-                  <span className="live-badge">LIVE</span>
-                  <div className="viewer-count">👁️ 857</div>
-                </div>
-                <h4>최신 스마트폰 언박싱 & 리뷰</h4>
-                <p>테크월드 | 10분 전 시작</p>
+            ) : activeRooms.length > 0 ? (
+              <div className="live-list">
+                {activeRooms.map((room) => (
+                  <div 
+                    key={room.name}
+                    className={`live-item ${selectedRoom?.name === room.name ? 'selected' : ''}`}
+                    onClick={() => handleRoomSelect(room)}
+                  >
+                    <div className="live-thumbnail">
+                      <span className="live-badge">LIVE</span>
+                      <div className="viewer-count">👁️ {room.numParticipants}</div>
+                    </div>
+                    <h4>{room.name}</h4>
+                    <p>
+                      {room.metadata?.category || '일반'} | 
+                      {new Date(room.creationTime).toLocaleTimeString('ko-KR', {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })} 시작
+                    </p>
+                  </div>
+                ))}
               </div>
-              <div className="live-item">
-                <div className="live-thumbnail">
-                  <span className="live-badge">LIVE</span>
-                  <div className="viewer-count">👁️ 492</div>
-                </div>
-                <h4>홈케어 제품 할인전</h4>
-                <p>리빙마트 | 45분 전 시작</p>
+            ) : (
+              <div className="no-rooms">
+                <p>현재 진행 중인 라이브 방송이 없습니다.</p>
+                <button 
+                  className="btn btn-secondary"
+                  onClick={loadActiveRooms}
+                >
+                  새로고침
+                </button>
               </div>
-            </div>
+            )}
+            
+            {selectedRoom && (
+              <div className="room-join-form">
+                <h4>"{selectedRoom.name}" 방송 참여하기</h4>
+                <form onSubmit={handleJoinRoom}>
+                  <div className="form-group">
+                    <input
+                      type="text"
+                      placeholder="시청자 이름"
+                      value={viewerName}
+                      onChange={(e) => setViewerName(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <button 
+                    type="submit" 
+                    className="btn btn-primary btn-full"
+                    disabled={!viewerName}
+                  >
+                    방송 참여하기
+                  </button>
+                </form>
+              </div>
+            )}
           </div>
         )}
       </main>
