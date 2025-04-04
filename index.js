@@ -3,7 +3,28 @@ const path = require('path');
 const { AccessToken } = require('livekit-server-sdk');
 const app = express();
 app.use(express.json());
-app.use(express.static('flashfrontend/dist'));
+
+// MIME 타입 설정 추가
+app.use((req, res, next) => {
+  const ext = path.extname(req.path);
+  if (ext === '.js' || ext === '.mjs') {
+    res.setHeader('Content-Type', 'application/javascript');
+  } else if (ext === '.css') {
+    res.setHeader('Content-Type', 'text/css');
+  }
+  next();
+});
+
+// 정적 파일 경로 설정
+app.use(express.static('flashfrontend/dist', {
+  setHeaders: function(res, path) {
+    if (path.endsWith('.js')) {
+      res.setHeader('Content-Type', 'application/javascript');
+    } else if (path.endsWith('.css')) {
+      res.setHeader('Content-Type', 'text/css');
+    }
+  }
+}));
 
 const port = process.env.PORT || 8080;
 
@@ -70,8 +91,19 @@ app.get('/api/pirates/:id', (req,res) => {
 });
 
 // 리액트 라우팅을 위해 모든 경로를 index.html로 리다이렉트
-app.get('*', (req, res) => {
-    res.sendFile(path.resolve(__dirname, 'flashfrontend', 'dist', 'index.html'));
+app.get('*', (req, res, next) => {
+  // assets 폴더의 정적 파일 요청은 무시 (이미 위에서 처리됨)
+  if (req.url.includes('.')) {
+    return next();
+  }
+  
+  // API 요청은 무시
+  if (req.url.startsWith('/api')) {
+    return next();
+  }
+  
+  console.log('SPA 라우팅:', req.url);
+  res.sendFile(path.resolve(__dirname, 'flashfrontend', 'dist', 'index.html'));
 });
 
 app.listen(port, () => {
