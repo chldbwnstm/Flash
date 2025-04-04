@@ -44,8 +44,10 @@ export class LiveKitService {
   async startBroadcast(token: string): Promise<Room> {
     try {
       // LiveKit 서버에 연결 (프록시 URL 사용)
-      // 직접 wss:// 주소 대신 백엔드 프록시를 통해 연결
-      const livekitUrl = '/livekit-proxy';
+      // 상대 경로 대신 완전한 URL 사용
+      const currentHost = window.location.origin; // 현재 호스트 (예: https://picklive.show)
+      const livekitUrl = `${currentHost}/livekit-proxy`; // 완전한 URL 생성
+      
       console.log('연결 시도할 URL (프록시):', livekitUrl);
       console.log('토큰 값:', token.substring(0, 20) + '...'); // 토큰 일부만 로그
       

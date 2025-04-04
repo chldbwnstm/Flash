@@ -17,13 +17,24 @@ const wsProxy = createProxyMiddleware({
   target: livekitHttpHost,
   changeOrigin: true,
   ws: true, // WebSocket 지원 활성화
+  secure: false, // SSL 검증 비활성화 (개발 환경에서 유용)
   pathRewrite: {
     '^/livekit-proxy': '', // URL 경로 재작성
   },
+  router: {
+    // WebSocket 요청은 WSS 서버로 라우팅
+    '/livekit-proxy/rtc': livekitHost,
+  },
+  logLevel: 'debug', // 디버깅을 위한 로그 레벨 설정
   onProxyReq: (proxyReq, req, res) => {
+    // 요청 헤더 로깅
+    console.log('프록시 요청 헤더:', req.headers);
     console.log(`WS 프록시 요청: ${req.method} ${req.url}`);
   },
   onProxyRes: (proxyRes, req, res) => {
+    // 응답 헤더 로깅
+    console.log('프록시 응답 헤더:', proxyRes.headers);
+    
     // CORS 헤더 추가
     proxyRes.headers['Access-Control-Allow-Origin'] = '*';
     proxyRes.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS';
@@ -32,11 +43,11 @@ const wsProxy = createProxyMiddleware({
   },
   onError: (err, req, res) => {
     console.error('프록시 오류:', err);
-    if (res.writeHead) {
+    if (res && res.writeHead) {
       res.writeHead(500, {
         'Content-Type': 'text/plain',
       });
-      res.end('LiveKit 서버 연결 오류');
+      res.end('LiveKit 서버 연결 오류: ' + err.message);
     }
   }
 });
