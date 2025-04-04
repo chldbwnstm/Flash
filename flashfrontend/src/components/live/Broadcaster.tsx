@@ -51,22 +51,40 @@ const Broadcaster: React.FC<BroadcasterProps> = ({ userName, roomName, onClose }
         setRoom(connectedRoom);
         setIsConnected(true);
 
-        // 처음부터 로컬 비디오 요소 확인 
-        console.log('localVideoRef 확인:', localVideoRef);
-        console.log('localVideoRef.current 확인:', localVideoRef.current);
-        console.log('document.getElementById 확인:', document.getElementById('video-preview'));
-
-        // DOM이 완전히 렌더링될 때까지 약간 대기
+        // DOM이 완전히 렌더링될 때까지 대기
         setTimeout(() => {
           try {
-            // 비디오 요소를 직접 쿼리로 찾기
-            const videoElement = document.getElementById('video-preview') as HTMLVideoElement;
+            // 다양한 방법으로 비디오 요소 찾기 시도
+            let videoElement: HTMLVideoElement | null = null;
+            
+            // 1. ref로 찾기 시도
+            if (localVideoRef.current) {
+              videoElement = localVideoRef.current;
+              console.log('localVideoRef로 비디오 요소를 찾았습니다');
+            } 
+            // 2. getElementById로 찾기 시도
+            else {
+              videoElement = document.getElementById('video-preview') as HTMLVideoElement;
+              if (videoElement) {
+                console.log('getElementById로 비디오 요소를 찾았습니다');
+              }
+            }
+            
+            // 3. DOM 쿼리로 찾기 시도
             if (!videoElement) {
-              console.error('document.getElementById로 비디오 요소를 찾을 수 없습니다');
+              const allVideos = document.querySelectorAll('video');
+              if (allVideos.length > 0) {
+                videoElement = allVideos[0] as HTMLVideoElement;
+                console.log('querySelector로 비디오 요소를 찾았습니다');
+              }
+            }
+            
+            if (!videoElement) {
+              console.error('어떤 방법으로도 비디오 요소를 찾을 수 없습니다');
               return;
             }
             
-            console.log('비디오 요소를 성공적으로 찾았습니다');
+            console.log('비디오 요소를 성공적으로 찾았습니다:', videoElement);
             console.log('비디오 요소에 트랙 연결 시도...');
             
             if (!livekitService.attachVideoTrack(videoElement)) {

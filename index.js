@@ -10,7 +10,7 @@ const port = process.env.PORT || 8080;
 // LiveKit 설정
 const apiKey = '77d517fbde26187d4349fa09575776b2';
 const apiSecret = '9732e928137c718a7a023a19415e8667e44c6385f863bb758e7679fde1fb8ead';
-const livekitHost = 'ws://114.204.127.97:7880';
+const livekitHost = 'wss://livekitserver1.picklive.show';
 
 // LiveKit 토큰 생성 엔드포인트
 app.post('/api/create-token', async (req, res) => {
