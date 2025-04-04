@@ -36,126 +36,74 @@ const Broadcaster: React.FC<BroadcasterProps> = ({ userName, roomName, onClose }
   
   // 방송 시작
   useEffect(() => {
-    const startBroadcast = async () => {
+    const initializeRoom = async () => {
       try {
-        console.log('방송 시작 시도:', { userName, roomName });
         setIsLoading(true);
         setError(null);
-        
-        // 1. 브라우저 미디어 권한 먼저 요청
-        try {
-          console.log('카메라/마이크 권한 요청');
-          const stream = await navigator.mediaDevices.getUserMedia({ 
-            audio: true, 
-            video: true 
-          });
-          console.log('카메라/마이크 권한 승인됨:', stream.getTracks().map(t => t.kind));
-          
-          // 테스트로 비디오를 직접 연결
-          if (localVideoRef.current) {
-            localVideoRef.current.srcObject = stream;
-            console.log('테스트 비디오 소스 설정 완료');
-          }
-          
-          // 사용이 끝난 후 트랙 해제 (LiveKit가 새로 만들 것이므로)
-          stream.getTracks().forEach(track => track.stop());
-        } catch (err) {
-          console.error('미디어 장치 접근 오류:', err);
-          throw new Error('카메라 또는 마이크에 접근할 수 없습니다: ' + (err as Error).message);
-        }
-        
-        // 2. 토큰 생성
-        console.log('토큰 생성 요청');
+
+        // 토큰 생성
         const token = await livekitService.createToken(userName, roomName, userName);
-        console.log('토큰 생성 성공, 토큰 타입:', typeof token);
-        if (typeof token !== 'string') {
-          throw new Error('토큰이 문자열이 아닙니다');
-        }
-        
-        // 3. 방송 시작 (방에 연결)
-        console.log('LiveKit 방 연결 시도');
+        console.log('토큰 생성 성공');
+
+        // 방 연결 및 방송 시작
         const connectedRoom = await livekitService.startBroadcast(token);
-        console.log('LiveKit 방 연결 성공:', connectedRoom.name);
+        console.log('방 연결 성공:', connectedRoom.name);
         setRoom(connectedRoom);
         setIsConnected(true);
-        
-        // 4. 로컬 비디오 설정
-        console.log('로컬 비디오 설정 시도');
-        const localParticipant = livekitService.getLocalParticipant();
-        if (localParticipant && localVideoRef.current) {
-          console.log('로컬 참가자:', localParticipant.identity);
-          
-          // 모든 트랙 로깅
-          const allTracks = localParticipant.trackPublications;
-          console.log('모든 트랙:', Array.from(allTracks.values()).map(pub => ({
-            kind: pub.kind,
-            trackName: pub.trackName
-          })));
-          
-          // 비디오 트랙 필터링
-          const videoTracks = localParticipant.getTrackPublications().filter(
-            track => track.kind === 'video'
-          );
-          
-          console.log('비디오 트랙:', videoTracks.length);
-          if (videoTracks.length > 0) {
-            const videoTrack = videoTracks[0].track;
-            if (videoTrack) {
-              videoTrack.attach(localVideoRef.current);
-              console.log('비디오 트랙 연결 성공');
-            } else {
-              console.error('비디오 트랙이 null입니다');
+
+        // 처음부터 로컬 비디오 요소 확인 
+        console.log('localVideoRef 확인:', localVideoRef);
+        console.log('localVideoRef.current 확인:', localVideoRef.current);
+        console.log('document.getElementById 확인:', document.getElementById('video-preview'));
+
+        // DOM이 완전히 렌더링될 때까지 약간 대기
+        setTimeout(() => {
+          try {
+            // 비디오 요소를 직접 쿼리로 찾기
+            const videoElement = document.getElementById('video-preview') as HTMLVideoElement;
+            if (!videoElement) {
+              console.error('document.getElementById로 비디오 요소를 찾을 수 없습니다');
+              return;
             }
-          } else {
-            console.error('비디오 트랙을 찾을 수 없습니다');
             
-            // 직접 새 로컬 트랙 생성 시도
-            try {
-              console.log('새 비디오 트랙 직접 생성 시도');
-              const mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
-              if (localVideoRef.current) {
-                localVideoRef.current.srcObject = mediaStream;
-                console.log('비디오 요소에 직접 스트림 연결 성공');
-              }
-            } catch (directVideoError) {
-              console.error('직접 비디오 생성 실패:', directVideoError);
+            console.log('비디오 요소를 성공적으로 찾았습니다');
+            console.log('비디오 요소에 트랙 연결 시도...');
+            
+            if (!livekitService.attachVideoTrack(videoElement)) {
+              console.error('비디오 트랙을 연결할 수 없습니다');
             }
+          } catch (attachError) {
+            console.error('비디오 연결 오류:', attachError);
           }
-        } else {
-          console.error('로컬 참가자 또는 비디오 요소가 없습니다');
-        }
-        
-        // 5. 시청자 수 업데이트
+        }, 2000);
+
+        // 시청자 수 업데이트
         connectedRoom.on('participantConnected', () => {
           const viewers = livekitService.getRemoteParticipants().length;
-          console.log('참가자 연결됨, 시청자 수:', viewers);
           setViewerCount(viewers);
         });
-        
+
         connectedRoom.on('participantDisconnected', () => {
           const viewers = livekitService.getRemoteParticipants().length;
-          console.log('참가자 연결 해제됨, 시청자 수:', viewers);
           setViewerCount(viewers);
         });
-        
-      } catch (err) {
-        console.error('방송 시작 오류:', err);
-        setError(err instanceof Error ? err.message : '방송을 시작할 수 없습니다.');
+
+      } catch (error) {
+        console.error('방 초기화 중 오류 발생:', error);
+        setError(error instanceof Error ? error.message : '방송을 시작할 수 없습니다.');
       } finally {
         setIsLoading(false);
       }
     };
-    
-    startBroadcast();
-    
-    // 컴포넌트 언마운트 시 방송 종료
+
+    initializeRoom();
+
     return () => {
       if (room) {
-        console.log('방송 종료 (컴포넌트 언마운트)');
         livekitService.stopBroadcast();
       }
     };
-  }, [userName, roomName]);
+  }, [roomName, userName]);
   
   // 방송 종료
   const handleEndBroadcast = () => {
@@ -216,6 +164,7 @@ const Broadcaster: React.FC<BroadcasterProps> = ({ userName, roomName, onClose }
       <div className="broadcast-content">
         <div className="video-container">
           <video 
+            id="video-preview"
             ref={localVideoRef} 
             autoPlay 
             playsInline 

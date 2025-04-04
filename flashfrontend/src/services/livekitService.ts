@@ -106,6 +106,128 @@ export class LiveKitService {
     return Array.from(this.room.remoteParticipants.values());
   }
   
+  // 로컬 참가자의 비디오 트랙 가져오기
+  getLocalVideoTrack(): LocalTrackPublication | undefined {
+    const localParticipant = this.getLocalParticipant();
+    if (!localParticipant) return undefined;
+    
+    return Array.from(localParticipant.trackPublications.values())
+      .find(pub => pub.kind === 'video');
+  }
+  
+  // 비디오 트랙을 비디오 요소에 연결
+  attachVideoTrack(videoElement: HTMLVideoElement): boolean {
+    console.log('attachVideoTrack 호출됨:', videoElement);
+    
+    const localParticipant = this.getLocalParticipant();
+    if (!localParticipant) {
+      console.error('로컬 참가자를 찾을 수 없습니다');
+      return false;
+    }
+
+    console.log('로컬 참가자 ID:', localParticipant.identity);
+
+    try {
+      // 모든 비디오 트랙 출력
+      const allTracks = Array.from(localParticipant.trackPublications.values());
+      console.log('사용 가능한 트랙:', allTracks.map(t => ({
+        kind: t.kind,
+        trackName: t.trackName,
+        source: t.source,
+        hasTrack: !!t.track
+      })));
+      
+      // 비디오 트랙 필터링
+      const videoPublications = allTracks.filter(pub => pub.kind === 'video');
+      console.log('비디오 트랙 수:', videoPublications.length);
+      
+      if (videoPublications.length === 0) {
+        // 비디오 트랙이 없는 경우 직접 생성 시도
+        console.log('비디오 트랙을 찾을 수 없어 직접 미디어 스트림을 연결합니다');
+        this.attachDirectMediaStream(videoElement);
+        return true;
+      }
+      
+      // 첫 번째 비디오 트랙 사용
+      const videoPublication = videoPublications[0];
+      console.log('사용할 비디오 트랙:', videoPublication.trackName);
+      
+      const videoTrack = videoPublication.track;
+      
+      if (!videoTrack) {
+        console.error('비디오 트랙이 없습니다');
+        return false;
+      }
+      
+      console.log('비디오 트랙 정보:', {
+        id: videoTrack.sid,
+        kind: videoTrack.kind,
+        mediaStreamTrack: videoTrack.mediaStreamTrack ? '있음' : '없음'
+      });
+      
+      // 비디오 요소에 트랙 연결
+      videoTrack.attach(videoElement);
+      console.log('비디오 트랙 연결 성공:', videoPublication.trackName);
+      return true;
+    } catch (error) {
+      console.error('비디오 트랙 연결 실패:', error);
+      return false;
+    }
+  }
+  
+  // 직접 미디어 스트림 연결
+  async attachDirectMediaStream(videoElement: HTMLVideoElement): Promise<boolean> {
+    try {
+      console.log('직접 미디어 스트림 연결 시도...');
+      
+      // 이미 srcObject가 있는지 확인
+      if (videoElement.srcObject) {
+        console.log('이미 비디오 요소에 스트림이 연결되어 있습니다');
+        return true;
+      }
+      
+      // 사용자 미디어 가져오기
+      const constraints = { 
+        video: { 
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          frameRate: { ideal: 30 } 
+        }, 
+        audio: true 
+      };
+      
+      console.log('사용자 미디어 요청 중...', constraints);
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      
+      // 트랙 정보 로깅
+      console.log('미디어 스트림 트랙:', stream.getTracks().map(t => ({
+        kind: t.kind,
+        label: t.label,
+        enabled: t.enabled,
+        id: t.id
+      })));
+      
+      // 비디오 요소에 스트림 연결
+      videoElement.srcObject = stream;
+      
+      // 자동 재생 시도
+      try {
+        await videoElement.play();
+        console.log('비디오 요소 재생 시작');
+      } catch (playError) {
+        console.error('비디오 요소 재생 실패:', playError);
+        // 사용자 상호작용이 필요할 수 있음을 알림
+        console.log('브라우저 정책으로 인해 사용자 상호작용 후 재생이 필요할 수 있습니다');
+      }
+      
+      console.log('직접 미디어 스트림 연결 성공');
+      return true;
+    } catch (err) {
+      console.error('직접 미디어 스트림 연결 실패:', err);
+      return false;
+    }
+  }
+  
   // 이벤트 핸들러
   private handleParticipantConnected = (participant: RemoteParticipant) => {
     console.log('Participant connected:', participant.identity);
