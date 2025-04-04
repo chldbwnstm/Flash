@@ -6,6 +6,44 @@ const { createProxyMiddleware } = require('http-proxy-middleware');
 const app = express();
 app.use(express.json());
 
+// LiveKit 설정
+const apiKey = '77d517fbde26187d4349fa09575776b2';
+const apiSecret = '9732e928137c718a7a023a19415e8667e44c6385f863bb758e7679fde1fb8ead';
+const livekitHost = 'wss://livekitserver1.picklive.show';
+const livekitHttpHost = 'https://livekitserver1.picklive.show';
+
+// WebSocket 프록시 설정 (먼저 정의)
+const wsProxy = createProxyMiddleware({
+  target: livekitHttpHost,
+  changeOrigin: true,
+  ws: true, // WebSocket 지원 활성화
+  pathRewrite: {
+    '^/livekit-proxy': '', // URL 경로 재작성
+  },
+  onProxyReq: (proxyReq, req, res) => {
+    console.log(`WS 프록시 요청: ${req.method} ${req.url}`);
+  },
+  onProxyRes: (proxyRes, req, res) => {
+    // CORS 헤더 추가
+    proxyRes.headers['Access-Control-Allow-Origin'] = '*';
+    proxyRes.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS';
+    proxyRes.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization';
+    console.log(`WS 프록시 응답: ${proxyRes.statusCode}`);
+  },
+  onError: (err, req, res) => {
+    console.error('프록시 오류:', err);
+    if (res.writeHead) {
+      res.writeHead(500, {
+        'Content-Type': 'text/plain',
+      });
+      res.end('LiveKit 서버 연결 오류');
+    }
+  }
+});
+
+// WebSocket 프록시를 다른 미들웨어보다 먼저 적용
+app.use('/livekit-proxy', wsProxy);
+
 // MIME 타입 설정
 const mimeTypes = {
   '.html': 'text/html',
@@ -38,12 +76,6 @@ app.use(express.static(staticPath, {
     }
   }
 }));
-
-// LiveKit 설정
-const apiKey = '77d517fbde26187d4349fa09575776b2';
-const apiSecret = '9732e928137c718a7a023a19415e8667e44c6385f863bb758e7679fde1fb8ead';
-const livekitHost = 'wss://livekitserver1.picklive.show';
-const livekitHttpHost = livekitHost.replace('wss://', 'https://');
 
 // LiveKit 토큰 생성 엔드포인트
 app.post('/api/create-token', async (req, res) => {
@@ -165,36 +197,6 @@ app.get('*', (req, res, next) => {
   console.log('SPA 라우팅:', req.url);
   return res.sendFile(path.join(staticPath, 'index.html'));
 });
-
-// WebSocket 프록시 설정
-const wsProxy = createProxyMiddleware('/livekit-proxy', {
-  target: livekitHttpHost,
-  changeOrigin: true,
-  ws: true, // WebSocket 지원 활성화
-  pathRewrite: {
-    '^/livekit-proxy': '', // URL 경로 재작성
-  },
-  onProxyReq: (proxyReq, req, res) => {
-    console.log(`WS 프록시 요청: ${req.method} ${req.url}`);
-  },
-  onProxyRes: (proxyRes, req, res) => {
-    // CORS 헤더 추가
-    proxyRes.headers['Access-Control-Allow-Origin'] = '*';
-    proxyRes.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS';
-    proxyRes.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization';
-    console.log(`WS 프록시 응답: ${proxyRes.statusCode}`);
-  },
-  onError: (err, req, res) => {
-    console.error('프록시 오류:', err);
-    res.writeHead(500, {
-      'Content-Type': 'text/plain',
-    });
-    res.end('LiveKit 서버 연결 오류');
-  }
-});
-
-// WebSocket 프록시 적용
-app.use(wsProxy);
 
 const port = process.env.PORT || 8080;
 
