@@ -177,6 +177,51 @@ app.get('*', (req, res, next) => {
   return res.sendFile(path.join(staticPath, 'index.html'));
 });
 
+// LiveKit 토큰 및 연결 관련 프록시 엔드포인트
+app.get('/api/livekit/validate', async (req, res) => {
+  try {
+    // 쿼리스트링 그대로 전달
+    const queryParams = new URLSearchParams(req.query).toString();
+    const targetUrl = `https://livekitserver1.picklive.show/rtc/validate?${queryParams}`;
+    
+    console.log('LiveKit 검증 프록시 요청:', targetUrl);
+    
+    // 서버 측에서 요청 전달 (CORS 우회)
+    const fetch = await import('node-fetch');
+    const response = await fetch.default(targetUrl, {
+      method: 'GET',
+      headers: {
+        'User-Agent': req.headers['user-agent']
+      }
+    });
+    
+    const data = await response.text();
+    const status = response.status;
+    
+    console.log('LiveKit 검증 응답 상태:', status);
+    
+    // 응답 헤더 설정
+    res.status(status);
+    for (const [key, value] of response.headers.entries()) {
+      // 적절한 헤더만 전달
+      if (!['content-length', 'connection', 'keep-alive'].includes(key.toLowerCase())) {
+        res.setHeader(key, value);
+      }
+    }
+    
+    // CORS 허용 헤더
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    
+    // 응답 데이터 반환
+    res.send(data);
+  } catch (error) {
+    console.error('LiveKit 검증 프록시 오류:', error);
+    res.status(500).json({ error: 'Failed to proxy validation request' });
+  }
+});
+
 const port = process.env.PORT || 8080;
 
 // app.listen(port, () => {

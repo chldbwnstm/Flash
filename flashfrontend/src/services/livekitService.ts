@@ -58,6 +58,25 @@ export class LiveKitService {
         autoSubscribe: true,
       };
       
+      // 사전 검증 요청을 우리 서버의 프록시 엔드포인트를 통해 수행
+      try {
+        // 원래 LiveKit 검증 URL을 프록시로 대체
+        const validateUrl = `/api/livekit/validate?access_token=${token}&auto_subscribe=1&sdk=js&version=2.9.9&protocol=15&adaptive_stream=1`;
+        console.log('프록시를 통한 토큰 검증 요청 시도...');
+        
+        const validateResponse = await fetch(validateUrl);
+        const validateResult = await validateResponse.text();
+        
+        console.log('토큰 검증 응답:', validateResponse.status, validateResponse.ok ? '성공' : '실패');
+        if(!validateResponse.ok) {
+          console.error('검증 응답 내용:', validateResult);
+        }
+      } catch (valErr) {
+        console.log('토큰 검증 시도 중 오류 (무시 가능):', valErr);
+        // 오류가 발생해도 계속 진행
+      }
+      
+      // LiveKit 서버에 연결 시도
       await this.room.connect(livekitUrl, token, connectOptions);
       console.log('Connected to room:', this.room.name);
       

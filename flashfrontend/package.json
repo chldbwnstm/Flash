@@ -17,6 +17,7 @@
     "http-proxy": "^1.18.1",
     "livekit-client": "^2.9.9",
     "livekit-server-sdk": "^2.10.2",
+    "node-fetch": "^3.3.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.4.0"
