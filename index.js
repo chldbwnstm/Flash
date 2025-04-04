@@ -1,50 +1,42 @@
 const express = require('express');
 const path = require('path');
 const { AccessToken } = require('livekit-server-sdk');
+const fs = require('fs');
 const app = express();
 app.use(express.json());
 
-// MIME 타입 설정 추가
-app.use((req, res, next) => {
-  const ext = path.extname(req.path);
-  if (ext === '.js' || ext === '.mjs') {
-    res.setHeader('Content-Type', 'application/javascript');
-  } else if (ext === '.css') {
-    res.setHeader('Content-Type', 'text/css');
-  }
-  next();
-});
+// MIME 타입 설정
+const mimeTypes = {
+  '.html': 'text/html',
+  '.js': 'application/javascript',
+  '.css': 'text/css',
+  '.json': 'application/json',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.svg': 'image/svg+xml',
+  '.wav': 'audio/wav',
+  '.mp4': 'video/mp4',
+  '.woff': 'application/font-woff',
+  '.ttf': 'application/font-ttf',
+  '.eot': 'application/vnd.ms-fontobject',
+  '.otf': 'application/font-otf',
+  '.wasm': 'application/wasm'
+};
 
 // 정적 파일 경로 설정
-const staticPath = path.join(__dirname, 'flashfrontend/dist');
+const staticPath = path.join(__dirname, 'flashfrontend', 'dist');
 console.log('정적 파일 경로:', staticPath);
 
-// 정적 파일 제공 
+// 정적 파일 제공
 app.use(express.static(staticPath, {
   setHeaders: function(res, filePath) {
-    console.log('정적 파일 요청:', filePath);
-    if (filePath.endsWith('.js')) {
-      res.setHeader('Content-Type', 'application/javascript');
-    } else if (filePath.endsWith('.css')) {
-      res.setHeader('Content-Type', 'text/css');
+    const ext = path.extname(filePath).toLowerCase();
+    if (mimeTypes[ext]) {
+      res.setHeader('Content-Type', mimeTypes[ext]);
     }
   }
 }));
-
-// assets 폴더를 위한 명시적 라우트 추가
-app.get('/assets/*', (req, res, next) => {
-  const assetPath = path.join(staticPath, 'assets', req.params[0]);
-  console.log('Asset 요청:', req.url, '-> 파일 경로:', assetPath);
-  
-  if (!require('fs').existsSync(assetPath)) {
-    console.log('Asset 파일 없음:', assetPath);
-    return res.status(404).send('Asset not found');
-  }
-  
-  res.sendFile(assetPath);
-});
-
-const port = process.env.PORT || 8080;
 
 // LiveKit 설정
 const apiKey = '77d517fbde26187d4349fa09575776b2';
@@ -108,65 +100,83 @@ app.get('/api/pirates/:id', (req,res) => {
     }
 });
 
+// 디렉토리 스캔 헬퍼 함수
+function directoryTree(dir, depth = 0) {
+  const result = [];
+  if (depth > 2) return result; // 깊이 제한
+  
+  try {
+    const files = fs.readdirSync(dir);
+    for (const file of files) {
+      const filePath = path.join(dir, file);
+      const stat = fs.statSync(filePath);
+      if (stat.isDirectory()) {
+        result.push({
+          type: 'directory',
+          name: file,
+          path: filePath,
+          children: directoryTree(filePath, depth + 1)
+        });
+      } else {
+        result.push({
+          type: 'file',
+          name: file,
+          path: filePath,
+          size: stat.size
+        });
+      }
+    }
+  } catch (err) {
+    console.error(`디렉토리 스캔 오류 (${dir}):`, err);
+  }
+  
+  return result;
+}
+
 // 리액트 라우팅을 위해 모든 경로를 index.html로 리다이렉트
 app.get('*', (req, res, next) => {
-  // assets 폴더의 정적 파일 요청은 무시 (이미 위에서 처리됨)
-  if (req.url.includes('.')) {
-    console.log('파일 요청 처리 중:', req.url);
-    return next();
-  }
-  
-  // API 요청은 무시
   if (req.url.startsWith('/api')) {
-    console.log('API 요청 처리 중:', req.url);
     return next();
   }
   
-  const indexPath = path.join(staticPath, 'index.html');
-  console.log('SPA 라우팅:', req.url, '-> 파일 경로:', indexPath);
-  
-  if (!require('fs').existsSync(indexPath)) {
-    console.log('index.html 파일 없음:', indexPath);
-    return res.status(404).send('App entry point not found');
+  // 파일 요청인 경우 (확장자가 있는 경우)
+  if (req.url.includes('.')) {
+    const filePath = path.join(staticPath, req.url);
+    console.log('파일 요청:', req.url, '-> 파일 경로:', filePath);
+    
+    if (fs.existsSync(filePath)) {
+      const ext = path.extname(filePath).toLowerCase();
+      if (mimeTypes[ext]) {
+        res.setHeader('Content-Type', mimeTypes[ext]);
+      }
+      return res.sendFile(filePath);
+    } else {
+      console.log('파일을 찾을 수 없음:', filePath);
+      // 트리 구조 출력 (디버깅용)
+      const tree = directoryTree(staticPath);
+      console.log('디렉토리 구조:', JSON.stringify(tree, null, 2));
+      return res.status(404).send('File not found');
+    }
   }
   
-  res.sendFile(indexPath);
+  // SPA 라우팅 처리 (HTML 페이지 요청)
+  console.log('SPA 라우팅:', req.url);
+  return res.sendFile(path.join(staticPath, 'index.html'));
 });
+
+const port = process.env.PORT || 8080;
 
 app.listen(port, () => {
     console.log(`Listening on port ${port}`);
     console.log('현재 디렉토리:', __dirname);
     
-    // 배포 환경에서 디렉토리 구조 확인
+    // 디렉토리 구조 출력
     try {
-      const fs = require('fs');
-      
-      // 현재 디렉토리 내용 확인
-      console.log('\n현재 디렉토리 내용:');
-      const rootFiles = fs.readdirSync(__dirname);
-      console.log(rootFiles);
-      
-      // dist 디렉토리 확인
-      const distPath = path.join(__dirname, 'flashfrontend', 'dist');
-      if (fs.existsSync(distPath)) {
-        console.log('\ndist 디렉토리 내용:');
-        const distFiles = fs.readdirSync(distPath);
-        console.log(distFiles);
-        
-        // assets 디렉토리 확인
-        const assetsPath = path.join(distPath, 'assets');
-        if (fs.existsSync(assetsPath)) {
-          console.log('\nassets 디렉토리 내용:');
-          const assetsFiles = fs.readdirSync(assetsPath);
-          console.log(assetsFiles);
-        } else {
-          console.log('\nassets 디렉토리가 없습니다:', assetsPath);
-        }
-      } else {
-        console.log('\ndist 디렉토리가 없습니다:', distPath);
-      }
+      console.log('\n정적 파일 디렉토리 구조:');
+      const tree = directoryTree(staticPath);
+      console.log(JSON.stringify(tree, null, 2));
     } catch (err) {
-      console.error('디렉토리 확인 중 오류 발생:', err);
+      console.error('디렉토리 구조 출력 오류:', err);
     }
 });
 

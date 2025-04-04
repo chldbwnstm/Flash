@@ -44,9 +44,9 @@ export class LiveKitService {
   async startBroadcast(token: string): Promise<Room> {
     try {
       // LiveKit 서버에 연결
-      const livekitUrl = 'wss://livekitserver1.picklive.show';
+      const livekitUrl = import.meta.env.VITE_LIVEKIT_URL || 'wss://livekitserver1.picklive.show';
       console.log('연결 시도할 URL:', livekitUrl);
-      console.log('토큰 값:', token); // 토큰 값 로그
+      console.log('토큰 값:', token.substring(0, 20) + '...'); // 토큰 일부만 로그
       
       await this.room.connect(livekitUrl, token);
       console.log('Connected to room:', this.room.name);
