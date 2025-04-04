@@ -16,15 +16,33 @@ app.use((req, res, next) => {
 });
 
 // 정적 파일 경로 설정
-app.use(express.static('flashfrontend/dist', {
-  setHeaders: function(res, path) {
-    if (path.endsWith('.js')) {
+const staticPath = path.join(__dirname, 'flashfrontend/dist');
+console.log('정적 파일 경로:', staticPath);
+
+// 정적 파일 제공 
+app.use(express.static(staticPath, {
+  setHeaders: function(res, filePath) {
+    console.log('정적 파일 요청:', filePath);
+    if (filePath.endsWith('.js')) {
       res.setHeader('Content-Type', 'application/javascript');
-    } else if (path.endsWith('.css')) {
+    } else if (filePath.endsWith('.css')) {
       res.setHeader('Content-Type', 'text/css');
     }
   }
 }));
+
+// assets 폴더를 위한 명시적 라우트 추가
+app.get('/assets/*', (req, res, next) => {
+  const assetPath = path.join(staticPath, 'assets', req.params[0]);
+  console.log('Asset 요청:', req.url, '-> 파일 경로:', assetPath);
+  
+  if (!require('fs').existsSync(assetPath)) {
+    console.log('Asset 파일 없음:', assetPath);
+    return res.status(404).send('Asset not found');
+  }
+  
+  res.sendFile(assetPath);
+});
 
 const port = process.env.PORT || 8080;
 
@@ -94,20 +112,62 @@ app.get('/api/pirates/:id', (req,res) => {
 app.get('*', (req, res, next) => {
   // assets 폴더의 정적 파일 요청은 무시 (이미 위에서 처리됨)
   if (req.url.includes('.')) {
+    console.log('파일 요청 처리 중:', req.url);
     return next();
   }
   
   // API 요청은 무시
   if (req.url.startsWith('/api')) {
+    console.log('API 요청 처리 중:', req.url);
     return next();
   }
   
-  console.log('SPA 라우팅:', req.url);
-  res.sendFile(path.resolve(__dirname, 'flashfrontend', 'dist', 'index.html'));
+  const indexPath = path.join(staticPath, 'index.html');
+  console.log('SPA 라우팅:', req.url, '-> 파일 경로:', indexPath);
+  
+  if (!require('fs').existsSync(indexPath)) {
+    console.log('index.html 파일 없음:', indexPath);
+    return res.status(404).send('App entry point not found');
+  }
+  
+  res.sendFile(indexPath);
 });
 
 app.listen(port, () => {
     console.log(`Listening on port ${port}`);
+    console.log('현재 디렉토리:', __dirname);
+    
+    // 배포 환경에서 디렉토리 구조 확인
+    try {
+      const fs = require('fs');
+      
+      // 현재 디렉토리 내용 확인
+      console.log('\n현재 디렉토리 내용:');
+      const rootFiles = fs.readdirSync(__dirname);
+      console.log(rootFiles);
+      
+      // dist 디렉토리 확인
+      const distPath = path.join(__dirname, 'flashfrontend', 'dist');
+      if (fs.existsSync(distPath)) {
+        console.log('\ndist 디렉토리 내용:');
+        const distFiles = fs.readdirSync(distPath);
+        console.log(distFiles);
+        
+        // assets 디렉토리 확인
+        const assetsPath = path.join(distPath, 'assets');
+        if (fs.existsSync(assetsPath)) {
+          console.log('\nassets 디렉토리 내용:');
+          const assetsFiles = fs.readdirSync(assetsPath);
+          console.log(assetsFiles);
+        } else {
+          console.log('\nassets 디렉토리가 없습니다:', assetsPath);
+        }
+      } else {
+        console.log('\ndist 디렉토리가 없습니다:', distPath);
+      }
+    } catch (err) {
+      console.error('디렉토리 확인 중 오류 발생:', err);
+    }
 });
 
 function getPirate(id) {
