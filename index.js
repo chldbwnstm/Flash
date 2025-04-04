@@ -3,6 +3,27 @@ const path = require('path');
 const { AccessToken } = require('livekit-server-sdk');
 const fs = require('fs');
 const cors = require('cors');
+const httpProxy = require('http-proxy');
+
+// 프록시 서버 생성
+const proxy = httpProxy.createProxyServer({
+  target: 'wss://livekitserver1.picklive.show',
+  ws: true,
+  secure: true,
+  changeOrigin: true
+});
+
+// 프록시 에러 처리
+proxy.on('error', (err, req, res) => {
+  console.error('프록시 오류:', err);
+  if (res.writeHead) {
+    res.writeHead(500, {
+      'Content-Type': 'text/plain'
+    });
+    res.end('프록시 오류');
+  }
+});
+
 const app = express();
 
 // CORS 설정
@@ -52,6 +73,38 @@ app.use(express.static(staticPath, {
 const apiKey = '77d517fbde26187d4349fa09575776b2';
 const apiSecret = '9732e928137c718a7a023a19415e8667e44c6385f863bb758e7679fde1fb8ead';
 const livekitHost = 'wss://livekitserver1.picklive.show';
+
+// LiveKit 프록시 설정
+app.use('/livekit-proxy', (req, res) => {
+  console.log('LiveKit 프록시 요청:', req.url);
+  
+  // CORS 헤더 추가
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, OPTIONS, POST');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+  
+  proxy.web(req, res, { target: 'https://livekitserver1.picklive.show' });
+});
+
+// WebSocket 요청 처리
+const server = require('http').createServer(app);
+server.on('upgrade', (req, socket, head) => {
+  if (req.url.startsWith('/livekit-proxy')) {
+    console.log('WebSocket 업그레이드 요청:', req.url);
+    
+    // '/livekit-proxy' 접두사 제거
+    req.url = req.url.replace('/livekit-proxy', '');
+    
+    proxy.ws(req, socket, head, {
+      target: 'wss://livekitserver1.picklive.show'
+    });
+  }
+});
 
 // LiveKit 토큰 생성 엔드포인트
 app.post('/api/create-token', async (req, res) => {
@@ -176,7 +229,8 @@ app.get('*', (req, res, next) => {
 
 const port = process.env.PORT || 8080;
 
-app.listen(port, () => {
+// app.listen(port, () => {
+server.listen(port, () => {
     console.log(`Listening on port ${port}`);
     console.log('현재 디렉토리:', __dirname);
     
