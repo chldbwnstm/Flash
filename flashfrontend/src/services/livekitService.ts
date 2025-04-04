@@ -6,7 +6,8 @@ import {
   RemoteParticipant,
   ConnectionState,
   createLocalTracks,
-  LocalTrackPublication
+  LocalTrackPublication,
+  DisconnectReason
 } from 'livekit-client';
 
 // 활성 방 정보 인터페이스 정의
@@ -38,7 +39,10 @@ export class LiveKitService {
       .on(RoomEvent.ParticipantConnected, this.handleParticipantConnected)
       .on(RoomEvent.ParticipantDisconnected, this.handleParticipantDisconnected)
       .on(RoomEvent.Disconnected, this.handleDisconnect)
-      .on(RoomEvent.ConnectionStateChanged, this.handleConnectionStateChanged);
+      .on(RoomEvent.ConnectionStateChanged, this.handleConnectionStateChanged)
+      .on(RoomEvent.DataReceived, this.handleDataReceived);
+      
+    console.log('LiveKitService 생성됨 - Room 객체 초기화');
   }
   
   // 활성 방 목록 가져오기
@@ -53,12 +57,17 @@ export class LiveKitService {
   }
   
   // 토큰 생성 요청
-  async createToken(identity: string, roomName: string, name?: string): Promise<string> {
+  async createToken(identity: string, roomName: string, name?: string, isHost: boolean = false): Promise<string> {
     try {
+      const metadata = {
+        name: name || identity,
+        role: isHost ? 'host' : 'viewer' // 호스트 또는 시청자 역할 지정
+      };
+      
       const response = await axios.post('/api/create-token', {
         identity,
         roomName,
-        metadata: { name }
+        metadata
       });
       
       return response.data.token;
@@ -81,15 +90,74 @@ export class LiveKitService {
         autoSubscribe: true
       };
       
+      // 채팅 데이터 수신 테스트
+      const onDataTest = (payload: Uint8Array, participant?: RemoteParticipant) => {
+        try {
+          const decoder = new TextDecoder();
+          const dataStr = decoder.decode(payload);
+          const data = JSON.parse(dataStr);
+          
+          console.log('방송자 - 데이터 수신:', {
+            sender: participant?.identity || 'unknown',
+            type: data.type,
+            content: data.type === 'chat' ? data.content : undefined,
+            length: dataStr.length
+          });
+        } catch (e) {
+          console.error('데이터 디코딩 오류:', e);
+        }
+      };
+      
+      // 연결 상태 변경 감지
+      const onConnectionStateChanged = (state: string) => {
+        console.log('방송자 연결 상태 변경:', state);
+      };
+      
+      // 이벤트 리스너 등록
+      this.room.on('dataReceived', onDataTest);
+      this.room.on('connectionStateChanged', onConnectionStateChanged);
+      
       console.log('LiveKit 서버 연결 시작...');
       
       // LiveKit 서버에 연결
       await this.room.connect(livekitUrl, token, connectOptions);
       console.log('방에 성공적으로 연결됨:', this.room.name);
       
+      // 방송자 권한 정보 로깅
+      console.log('방송자 정보:', {
+        identity: this.room.localParticipant.identity,
+        metadata: this.room.localParticipant.metadata,
+        sid: this.room.localParticipant.sid,
+        permissions: this.room.localParticipant.permissions,
+        connectionQuality: this.room.localParticipant.connectionQuality,
+        isSpeaking: this.room.localParticipant.isSpeaking,
+      });
+      
       // 로컬 트랙 게시 (카메라 및 마이크)
       await this.publishLocalTracks();
       console.log('로컬 미디어 트랙 게시 완료');
+      
+      // 채팅 데이터 발행 테스트
+      setTimeout(async () => {
+        try {
+          console.log('방송자에서 채팅 데이터 발행 테스트 시작...');
+          const testMessage = {
+            type: 'chat',
+            id: 'broadcast-test-' + Date.now(),
+            sender: this.room.localParticipant.identity,
+            content: '방송자 채팅 테스트 메시지',
+            timestamp: new Date().toISOString()
+          };
+          
+          const encoder = new TextEncoder();
+          const data = encoder.encode(JSON.stringify(testMessage));
+          
+          await this.room.localParticipant.publishData(data, { reliable: true });
+          console.log('방송자 채팅 테스트 데이터 전송 성공!');
+        } catch (e) {
+          console.error('방송자 채팅 테스트 데이터 전송 실패:', e);
+        }
+      }, 3000); // 3초 후 테스트
       
       return this.room;
     } catch (error) {
@@ -104,15 +172,62 @@ export class LiveKitService {
       // LiveKit 서버에 연결
       const livekitUrl = 'wss://livekitserver1.picklive.show';
       console.log(`시청자 모드로 LiveKit 서버 연결 시도: ${livekitUrl}`);
+      console.log(`토큰 일부: ${token.substring(0, 20)}...`);
       
       // 연결 옵션 설정 - 시청자는 마이크와 카메라 없이 참여
       const connectOptions = {
         autoSubscribe: true
       };
       
+      // 테스트용 이벤트 리스너 추가
+      const onDataTest = (payload: Uint8Array) => {
+        console.log('데이터 수신 테스트:', payload.length);
+      };
+      
+      // 연결 상태 변경 감지
+      const onConnectionStateChanged = (state: string) => {
+        console.log('시청자 연결 상태 변경:', state);
+      };
+      
+      // 테스트용 이벤트 리스너 등록
+      this.room.on('dataReceived', onDataTest);
+      this.room.on('connectionStateChanged', onConnectionStateChanged);
+      
       // LiveKit 서버에 연결
       await this.room.connect(livekitUrl, token, connectOptions);
       console.log('시청자로 방에 성공적으로 연결됨:', this.room.name);
+      
+      // 참가자 권한 정보 로깅
+      console.log('시청자 정보:', {
+        identity: this.room.localParticipant.identity,
+        metadata: this.room.localParticipant.metadata,
+        sid: this.room.localParticipant.sid,
+        permissions: this.room.localParticipant.permissions,
+        connectionQuality: this.room.localParticipant.connectionQuality,
+        isSpeaking: this.room.localParticipant.isSpeaking,
+      });
+      
+      // 채팅 데이터 발행 테스트
+      setTimeout(async () => {
+        try {
+          console.log('시청자에서 채팅 데이터 발행 테스트 시작...');
+          const testMessage = {
+            type: 'chat',
+            id: 'test-' + Date.now(),
+            sender: this.room.localParticipant.identity,
+            content: '시청자 채팅 테스트 메시지',
+            timestamp: new Date().toISOString()
+          };
+          
+          const encoder = new TextEncoder();
+          const data = encoder.encode(JSON.stringify(testMessage));
+          
+          await this.room.localParticipant.publishData(data, { reliable: true });
+          console.log('시청자 채팅 테스트 데이터 전송 성공!');
+        } catch (e) {
+          console.error('시청자 채팅 테스트 데이터 전송 실패:', e);
+        }
+      }, 5000); // 5초 후 테스트
       
       return this.room;
     } catch (error) {
@@ -291,20 +406,50 @@ export class LiveKitService {
   
   // 이벤트 핸들러
   private handleParticipantConnected = (participant: RemoteParticipant) => {
-    console.log('Participant connected:', participant.identity);
-  };
+    try {
+      const metadata = participant.metadata ? JSON.parse(participant.metadata) : {};
+      console.log('참가자 연결됨:', {
+        identity: participant.identity, 
+        name: metadata.name,
+        role: metadata.role
+      });
+    } catch (e) {
+      console.error('참가자 연결 이벤트 처리 오류:', e);
+    }
+  }
   
   private handleParticipantDisconnected = (participant: RemoteParticipant) => {
-    console.log('Participant disconnected:', participant.identity);
-  };
+    try {
+      console.log('참가자 연결 해제됨:', participant.identity);
+    } catch (e) {
+      console.error('참가자 연결 해제 이벤트 처리 오류:', e);
+    }
+  }
   
-  private handleDisconnect = () => {
-    console.log('Disconnected from room');
-  };
+  // 연결 해제 이벤트 핸들러
+  private handleDisconnect = (reason?: DisconnectReason) => {
+    console.log('방 연결 해제됨:', reason || '알 수 없는 이유');
+  }
   
   private handleConnectionStateChanged = (state: ConnectionState) => {
-    console.log('Connection state changed:', state);
-  };
+    console.log('연결 상태 변경됨:', state);
+  }
+  
+  private handleDataReceived = (payload: Uint8Array, participant?: RemoteParticipant) => {
+    try {
+      const decoder = new TextDecoder();
+      const dataStr = decoder.decode(payload);
+      const data = JSON.parse(dataStr);
+      
+      console.log('LiveKitService 데이터 수신:', {
+        sender: participant?.identity || 'unknown',
+        type: data.type,
+        length: dataStr.length
+      });
+    } catch (e) {
+      console.error('데이터 수신 처리 오류:', e);
+    }
+  }
 }
 
 // 싱글톤 인스턴스 생성

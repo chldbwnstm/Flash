@@ -63,13 +63,22 @@ const Viewer: React.FC<ViewerProps> = ({ userName, roomName, onClose }) => {
         
         // 방송자 찾기
         connectedRoom.remoteParticipants.forEach((participant: RemoteParticipant) => {
-          if (participant.metadata && participant.metadata.includes('host')) {
-            setBroadcaster(participant);
+          try {
+            console.log('참가자 확인:', participant.identity, participant.metadata);
+            const metadata = participant.metadata ? JSON.parse(participant.metadata) : null;
             
-            // 비디오 요소가 준비되면 방송자 비디오 연결
-            if (videoElement) {
-              attachBroadcasterVideo(participant);
+            // 방송자(host) 역할을 가진 참가자 찾기
+            if (metadata && metadata.role === 'host') {
+              console.log('방송자 찾음:', participant.identity);
+              setBroadcaster(participant);
+              
+              // 비디오 요소가 준비되면 방송자 비디오 연결
+              if (videoElement) {
+                attachBroadcasterVideo(participant);
+              }
             }
+          } catch (error) {
+            console.error('참가자 메타데이터 처리 중 오류:', error);
           }
         });
         
@@ -78,13 +87,21 @@ const Viewer: React.FC<ViewerProps> = ({ userName, roomName, onClose }) => {
         
         // 방송자 연결 이벤트
         connectedRoom.on('participantConnected', (participant: RemoteParticipant) => {
-          if (participant.metadata && participant.metadata.includes('host')) {
-            setBroadcaster(participant);
+          try {
+            console.log('새 참가자 연결됨:', participant.identity, participant.metadata);
+            const metadata = participant.metadata ? JSON.parse(participant.metadata) : null;
             
-            // 비디오 요소가 준비되면 방송자 비디오 연결
-            if (videoElement) {
-              attachBroadcasterVideo(participant);
+            if (metadata && metadata.role === 'host') {
+              console.log('방송자 연결됨:', participant.identity);
+              setBroadcaster(participant);
+              
+              // 비디오 요소가 준비되면 방송자 비디오 연결
+              if (videoElement) {
+                attachBroadcasterVideo(participant);
+              }
             }
+          } catch (error) {
+            console.error('참가자 메타데이터 처리 중 오류:', error);
           }
           
           setViewerCount(connectedRoom.remoteParticipants.size + 1);
@@ -92,9 +109,17 @@ const Viewer: React.FC<ViewerProps> = ({ userName, roomName, onClose }) => {
         
         // 참가자 연결 해제 이벤트
         connectedRoom.on('participantDisconnected', (participant: RemoteParticipant) => {
-          if (participant.metadata && participant.metadata.includes('host')) {
-            setBroadcaster(null);
-            setError('방송이 종료되었습니다.');
+          try {
+            console.log('참가자 연결 끊김:', participant.identity, participant.metadata);
+            const metadata = participant.metadata ? JSON.parse(participant.metadata) : null;
+            
+            if (metadata && metadata.role === 'host') {
+              console.log('방송자 연결 끊김:', participant.identity);
+              setBroadcaster(null);
+              setError('방송이 종료되었습니다.');
+            }
+          } catch (error) {
+            console.error('참가자 메타데이터 처리 중 오류:', error);
           }
           
           setViewerCount(connectedRoom.remoteParticipants.size + 1);
@@ -102,11 +127,19 @@ const Viewer: React.FC<ViewerProps> = ({ userName, roomName, onClose }) => {
         
         // 트랙 구독 이벤트
         connectedRoom.on('trackSubscribed', (track, _publication, participant: RemoteParticipant) => {
-          if (participant.metadata && participant.metadata.includes('host') && track.kind === Track.Kind.Video) {
-            if (videoElement) {
-              track.attach(videoElement);
-              console.log('방송자 비디오 트랙 구독 및 연결 성공');
+          try {
+            console.log('트랙 구독됨:', track.kind, participant.identity);
+            const metadata = participant.metadata ? JSON.parse(participant.metadata) : null;
+            
+            if (metadata && metadata.role === 'host' && track.kind === Track.Kind.Video) {
+              console.log('방송자 비디오 트랙 구독됨:', participant.identity);
+              if (videoElement) {
+                track.attach(videoElement);
+                console.log('방송자 비디오 트랙 구독 및 연결 성공');
+              }
             }
+          } catch (error) {
+            console.error('트랙 구독 처리 중 오류:', error);
           }
         });
         
@@ -192,7 +225,7 @@ const Viewer: React.FC<ViewerProps> = ({ userName, roomName, onClose }) => {
         </div>
         
         <div className="chat-container-wrapper">
-          <Chat roomName={roomName} userName={userName} />
+          <Chat userName={userName} room={room} />
         </div>
       </div>
     </div>

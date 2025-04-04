@@ -98,18 +98,30 @@ app.post('/api/create-token', async (req, res) => {
       return res.status(400).json({ error: 'identity and roomName are required' });
     }
     
+    // metadata 객체에 role 정보 추가 처리
+    const tokenMetadata = {
+      ...metadata,
+      role: metadata?.role || 'viewer' // 기본값은 시청자
+    };
+    
+    console.log('토큰 메타데이터:', tokenMetadata);
+    
     // 토큰 생성
     const token = new AccessToken(apiKey, apiSecret, {
       identity,
-      name: metadata?.name || identity,
+      name: tokenMetadata.name || identity,
+      metadata: JSON.stringify(tokenMetadata) // 메타데이터를 문자열로 변환하여 저장
     });
     
-    // 참가자 권한 설정
+    // 참가자 권한 설정 - role에 따라 권한 차등 부여
+    const isPublisher = tokenMetadata.role === 'host' || tokenMetadata.role === 'broadcaster';
+    
     token.addGrant({
       roomJoin: true,
       room: roomName,
-      canPublish: true,
-      canSubscribe: true,
+      canPublish: isPublisher, // 방송자만 게시 가능
+      canPublishData: true,    // 모든 참가자가 데이터 채널을 통해 메시지 전송 가능
+      canSubscribe: true,      // 모두 구독 가능
     });
     
     // 서명된 토큰 생성

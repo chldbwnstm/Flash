@@ -41,8 +41,8 @@ const Broadcaster: React.FC<BroadcasterProps> = ({ userName, roomName, onClose }
         setIsLoading(true);
         setError(null);
 
-        // 토큰 생성
-        const token = await livekitService.createToken(userName, roomName, userName);
+        // 토큰 생성 - 방송자는 isHost=true로 설정
+        const token = await livekitService.createToken(userName, roomName, userName, true);
         console.log('토큰 생성 성공');
 
         // 방 연결 및 방송 시작
@@ -192,7 +192,7 @@ const Broadcaster: React.FC<BroadcasterProps> = ({ userName, roomName, onClose }
         </div>
         
         <div className="chat-container-wrapper">
-          <Chat roomName={roomName} userName={userName} />
+          <Chat userName={userName} room={room} />
         </div>
       </div>
       
