@@ -44,11 +44,10 @@ export class LiveKitService {
   async startBroadcast(token: string): Promise<Room> {
     try {
       // LiveKit 서버에 연결
-      const livekitUrl = 'wss://livekitserver1.picklive.show';
-      console.log('연결 시도할 URL:', livekitUrl);
+      console.log('연결 시도할 URL:', import.meta.env.VITE_LIVEKIT_URL);
       console.log('토큰 값:', token); // 토큰 값 로그
       
-      await this.room.connect(livekitUrl, token);
+      await this.room.connect(import.meta.env.VITE_LIVEKIT_URL || 'ws://localhost:7880', token);
       console.log('Connected to room:', this.room.name);
       
       // 로컬 트랙 게시 (카메라 및 마이크)
