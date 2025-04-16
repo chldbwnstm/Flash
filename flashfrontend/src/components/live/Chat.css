@@ -7,6 +7,7 @@
   overflow: hidden;
   background-color: #fff;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  position: relative;
 }
 
 .chat-header {
@@ -16,6 +17,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .chat-header h3 {
@@ -60,6 +62,9 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  height: calc(100% - 130px);
+  min-height: 200px;
+  overflow-x: hidden;
 }
 
 .message {
@@ -115,6 +120,7 @@
   padding: 10px;
   border-top: 1px solid #e0e0e0;
   background-color: #f9f9f9;
+  flex-shrink: 0;
 }
 
 .message-input {

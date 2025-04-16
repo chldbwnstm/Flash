@@ -2,7 +2,7 @@
   display: flex;
   flex-direction: column;
   width: 100%;
-  height: 100%;
+  height: 100vh;
   background-color: #000;
   color: #fff;
   border-radius: 8px;
@@ -93,6 +93,9 @@
   flex: 1;
   overflow: hidden;
   background-color: #111;
+  position: relative;
+  height: calc(100vh - 100px);
+  max-height: calc(100vh - 100px);
 }
 
 .video-container {
@@ -103,7 +106,7 @@
   overflow: hidden;
   background-color: #111;
   position: relative;
-  min-height: 400px;
+  height: 100%;
 }
 
 .chat-container-wrapper {
@@ -112,6 +115,9 @@
   max-width: 400px;
   border-left: 1px solid #333;
   background-color: #f5f5f5;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
   overflow: hidden;
 }
 
@@ -162,4 +168,25 @@
 
 .btn-primary:hover {
   background-color: #0069d9;
+}
+
+/* 모바일 대응 스타일 */
+@media (max-width: 992px) {
+  .broadcast-content {
+    flex-direction: column;
+    height: auto;
+  }
+  
+  .video-container {
+    min-height: 300px;
+    height: auto;
+  }
+  
+  .chat-container-wrapper {
+    border-left: none;
+    border-top: 1px solid #333;
+    max-width: 100%;
+    min-width: 100%;
+    height: 350px;
+  }
 } 
